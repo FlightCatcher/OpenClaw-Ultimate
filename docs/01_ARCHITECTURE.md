@@ -13,6 +13,7 @@ Context Window Builder
   ↓
 Agent Runtime
   ├─ Planner (Task Graph / DAG)
+  ├─ Executor (step state / result persistence)
   ├─ OpenAI-Compatible Model
   └─ Tool Registry
        ├─ Workspace read/search tools
@@ -29,7 +30,7 @@ Ollama
 - `sessions/`：会话、消息和滚动摘要持久化。
 - `memory/`：摘要、长期记忆和语义检索。
 - `tools/`：工作区访问策略与受限命令执行。
-- `planner/`：结构化计划、DAG 校验和计划持久化。
+- `planner/`：结构化计划、DAG 校验、计划执行和状态持久化。
 - `context.py`：Token 估算和上下文窗口选择。
 - `app.py`：默认 Agent 及内置工具装配。
 - `cli.py`：聊天、会话和记忆命令。

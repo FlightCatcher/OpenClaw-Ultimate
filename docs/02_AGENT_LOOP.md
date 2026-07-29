@@ -37,6 +37,12 @@ DAG 校验
   └─ 计算拓扑顺序与就绪步骤
   ↓
 保存计划与步骤状态
+  ↓
+Executor 选择就绪步骤
+  ↓
+Agent Runtime 调用模型与工具
+  ↓
+持久化 completed / failed、结果和错误
 ```
 
 ## 运行边界

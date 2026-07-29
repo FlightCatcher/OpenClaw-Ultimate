@@ -18,6 +18,9 @@ from openclaw_ultimate.planner.store import (
 )
 
 __all__ = [
+    "PlanExecutionError",
+    "PlanExecutionResult",
+    "PlanExecutor",
     "PlanNotFoundError",
     "PlanStatus",
     "PlanStep",
@@ -29,3 +32,8 @@ __all__ = [
     "TaskGraph",
     "TaskPlan",
 ]
+from openclaw_ultimate.planner.executor import (
+    PlanExecutionError,
+    PlanExecutionResult,
+    PlanExecutor,
+)

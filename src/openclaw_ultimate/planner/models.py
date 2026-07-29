@@ -93,3 +93,13 @@ class TaskPlan:
             status=status or self.status,
             updated_at=datetime.now(UTC).isoformat(timespec="milliseconds"),
         )
+
+    def with_status(
+        self,
+        status: PlanStatus,
+    ) -> TaskPlan:
+        return replace(
+            self,
+            status=status,
+            updated_at=datetime.now(UTC).isoformat(timespec="milliseconds"),
+        )

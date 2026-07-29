@@ -29,6 +29,8 @@ from openclaw_ultimate.models import (
     OpenAICompatibleEmbeddingModel,
 )
 from openclaw_ultimate.planner import (
+    PlanExecutionError,
+    PlanExecutor,
     PlanNotFoundError,
     SQLitePlanStore,
     StructuredPlanner,
@@ -914,6 +916,55 @@ def plan_delete(
     console.print(f"[green]计划已删除：{plan_id}[/green]")
 
 
+@plan_app.command("run")
+def plan_run(
+    plan_id: str = typer.Argument(...),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="跳过执行确认。",
+    ),
+) -> None:
+    """按照 DAG 依赖顺序执行计划。"""
+
+    async def run() -> None:
+        settings = load_settings()
+        store = _get_plan_store(settings)
+
+        try:
+            plan = store.get(plan_id)
+        except PlanNotFoundError as exc:
+            console.print(f"[red]计划不存在：{plan_id}[/red]")
+            raise typer.Exit(code=1) from exc
+
+        if not yes and not typer.confirm(f"确定执行计划“{plan.goal}”吗？"):
+            raise typer.Abort()
+
+        agent = build_default_agent(settings)
+        executor = PlanExecutor()
+
+        try:
+            result = await executor.execute(
+                plan=plan,
+                agent=agent,
+                store=store,
+            )
+        except PlanExecutionError as exc:
+            console.print(f"[red]计划无法执行：{exc}[/red]")
+            raise typer.Exit(code=1) from exc
+
+        _print_plan(result.plan)
+
+        if result.failed_step_id:
+            console.print(f"[red]执行失败：{result.failed_step_id}[/red]")
+            raise typer.Exit(code=1)
+
+        console.print("[green]计划执行完成。[/green]")
+
+    asyncio.run(run())
+
+
 def _print_plan(plan: TaskPlan) -> None:
     graph = TaskGraph(plan.steps)
     table = Table(title=f"任务计划：{plan.goal}")
@@ -933,6 +984,13 @@ def _print_plan(plan: TaskPlan) -> None:
         )
 
     console.print(table)
+
+    for step in graph.topological_order():
+        if step.result:
+            console.print(f"[green]{step.id} 结果：[/green]{step.result}")
+
+        if step.error:
+            console.print(f"[red]{step.id} 错误：[/red]{step.error}")
 
 
 if __name__ == "__main__":
