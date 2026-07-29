@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+pydantic
+pyyaml
+rich
+typer
+loguru
+httpx
+numpy
+faiss-cpu
+sentence-transformers
+openai
+ollama
