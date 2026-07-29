@@ -1,6 +1,5 @@
 param(
-    [string]$ProjectRoot = (Split-Path -Parent $PSScriptRoot),
-    [int]$Port = 8765
+    [string]$ProjectRoot = (Split-Path -Parent $PSScriptRoot)
 )
 
 $ErrorActionPreference = "Stop"
@@ -16,12 +15,17 @@ $shortcut = $shell.CreateShortcut($shortcutPath)
 $shortcut.TargetPath = $powershell
 $shortcut.Arguments = (
     "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden " +
-    "-File `"$launcher`" -ProjectRoot `"$resolvedRoot`" -Port $Port"
+    "-File `"$launcher`" -ProjectRoot `"$resolvedRoot`""
 )
 $shortcut.WorkingDirectory = $resolvedRoot
-$shortcut.Description = "VELA local AI agent command deck"
-$shortcut.IconLocation = "$powershell,0"
+$shortcut.Description = "VELA local AI agent powered by OpenClaw"
+$openClawIcon = Join-Path ((& npm root -g).Trim()) "openclaw\dist\control-ui\favicon.ico"
+
+if (Test-Path -LiteralPath $openClawIcon -PathType Leaf) {
+    $shortcut.IconLocation = "$openClawIcon,0"
+}
+
 $shortcut.Save()
 
 Write-Host "[OK] Desktop shortcut created: $shortcutPath"
-Write-Host "[OK] VELA remains local: http://127.0.0.1:$Port/"
+Write-Host "[OK] VELA uses the original OpenClaw Dashboard and icon."

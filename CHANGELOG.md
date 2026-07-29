@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.4 - 2026-07-29
+
+- Reused the original OpenClaw Dashboard as VELA's primary local interface.
+- Preserved the original OpenClaw icon, layout, sessions and runtime internals.
+- Added an idempotent VELA branding layer with automatic local UI backups.
+- Kept DeepSeek API as the primary chat model and Ollama as the local fallback.
+- Updated the desktop launcher to open the authenticated OpenClaw Dashboard.
+
 ## 1.0.3 - 2026-07-29
 
 - Fixed Windows-relative MCP configuration resolution that could make local chat return HTTP 500.

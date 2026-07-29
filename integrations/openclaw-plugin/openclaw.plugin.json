@@ -2,7 +2,7 @@
   "id": "openclaw-ultimate",
   "name": "VELA for OpenClaw",
   "description": "Adds VELA planning, execution, reflection and local knowledge to OpenClaw.",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "activation": {
     "onStartup": true
   },

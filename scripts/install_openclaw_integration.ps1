@@ -88,6 +88,12 @@ if ($LASTEXITCODE -ne 0) {
     throw "OpenClaw could not load the VELA plugin."
 }
 
+& (Join-Path $PSScriptRoot "apply_vela_openclaw_ui.ps1")
+
+if ($LASTEXITCODE -ne 0) {
+    throw "Could not apply the VELA brand layer to the OpenClaw Dashboard."
+}
+
 if (-not $SkipRestart) {
     & openclaw gateway restart --safe
 

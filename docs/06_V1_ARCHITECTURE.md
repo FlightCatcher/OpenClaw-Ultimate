@@ -40,5 +40,10 @@ Request
 
 ## UI
 
-Command Deck 由 Python 本地 API 直接提供静态资源，不使用云端 CDN、外部字体或遥测。
-所有请求都指向 `127.0.0.1`。
+VELA 复用 OpenClaw 原生 Dashboard，保留其图标、布局、会话管理、认证和插件机制。
+`scripts/apply_vela_openclaw_ui.ps1` 只添加可重复应用的品牌层，不改写 OpenClaw
+内部协议或前端程序包。OpenClaw 更新覆盖本地静态文件后，重新运行集成安装脚本即可。
+
+原先由 Python API 提供的 Command Deck 保留为兼容界面，但不再是默认入口。默认
+桌面入口打开 `127.0.0.1:18789` 的已认证 Dashboard；兼容 API 继续只监听
+`127.0.0.1:8765`。

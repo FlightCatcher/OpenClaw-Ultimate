@@ -4,7 +4,8 @@
 
 - 项目：`E:\Projects\OpenClaw-Ultimate`
 - OpenClaw Gateway：`127.0.0.1:18789`
-- OCU API：`127.0.0.1:8765`
+- VELA Dashboard（原生 OpenClaw UI）：`127.0.0.1:18789`
+- 兼容 API：`127.0.0.1:8765`
 - Ollama：`127.0.0.1:11434`
 - ComfyUI：`127.0.0.1:8188`
 - 知识库：`E:\OpenClaw-Knowledge\library`
@@ -18,21 +19,29 @@
 cd E:\Projects\OpenClaw-Ultimate
 .\bootstrap.ps1
 .\scripts\install_openclaw_integration.ps1
+.\scripts\install_vela.ps1
 uv run ocu knowledge index
-.\scripts\start_ocu.ps1
 .\scripts\verify_ocu.ps1 -Full
 ```
 
 ## 日常启动
 
-确认 Ollama、OpenClaw Gateway 和 ComfyUI 已启动，然后执行：
+双击桌面的 **VELA AI**，或执行：
 
 ```powershell
-.\scripts\start_ocu.ps1
+.\scripts\start_vela.ps1
 uv run ocu status
 ```
 
-如果 API 已经运行，启动脚本会直接报告 ready，不会重复启动。
+启动器会复用 OpenClaw Dashboard 和原图标，并以当前 Gateway token 打开页面。
+聊天主模型来自 OpenClaw 配置，当前为 `deepseek/deepseek-v4-flash`；Ollama
+`qwen3:8b` 仅作为本地回退。
+
+如需调试兼容 API，再单独运行：
+
+```powershell
+.\scripts\start_ocu.ps1
+```
 
 ## 日常停止
 
@@ -53,7 +62,7 @@ uv run ocu knowledge search "OpenClaw Ollama 配置"
 uv run ocu plan list
 ```
 
-## 本地 API
+## 兼容 API
 
 健康检查：
 

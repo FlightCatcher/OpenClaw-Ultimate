@@ -22,7 +22,7 @@ MCP、安全确认和审计记录组合为一个真正可执行的本地工作�
 - 使用 OpenClaw Browser 读取公开网页，使用 ComfyUI 生成图片。
 - 通过白名单 stdio MCP 调用工具；内置 `vela-local` MCP 服务用于真实链路验收。
 - 对写入、删除和高风险命令执行一次性人工确认，并留下 SQLite 审计记录。
-- 通过本地 Command Deck 管理任务、对话、知识、记忆、安全和集成状态。
+- 通过原生 OpenClaw Dashboard（VELA 品牌层）管理对话、任务和集成状态。
 - 备份本地状态、检查数据库完整性，并通过 Windows/Linux CI 自动回归。
 
 ## 系统结构
@@ -30,10 +30,9 @@ MCP、安全确认和审计记录组合为一个真正可执行的本地工作�
 ```text
 User
   │
-  ├── OpenClaw
-  ├── VELA Command Deck
+  ├── VELA Dashboard（原生 OpenClaw UI）
   ├── CLI
-  └── Local API
+  └── Compatibility API
         │
         ▼
 Agent Runtime
@@ -74,13 +73,17 @@ VELA 默认只让一个 4B–8B 模型常驻显存，驻留预算为 6.5 GiB，�
 .\scripts\start_vela.ps1
 ```
 
-控制台仅监听本机：
+桌面快捷方式会打开原生 OpenClaw Dashboard。原图标、页面布局、会话和插件机制
+保持不变，用户可见品牌显示为 VELA：
 
 ```text
-http://127.0.0.1:8765/
+http://127.0.0.1:18789/
 ```
 
-也可以在前台启动：
+聊天继续使用当前 OpenClaw 配置中的 DeepSeek API 主模型；本地 Ollama 模型只作为
+故障回退。独立的 `8765` API/UI 保留用于兼容和调试，不再是默认用户界面。
+
+需要前台运行兼容 API 时：
 
 ```powershell
 uv run vela ui
@@ -105,11 +108,11 @@ uv run vela openclaw status
 uv run ocu status
 ```
 
-## 本地 API
+## 兼容 API
 
 主要端点：
 
-- `GET /`：VELA Command Deck
+- `GET /`：旧版兼容页面（非默认 UI）
 - `GET /health`：统一健康状态
 - `GET /v1/meta`：品牌与版本
 - `POST /v1/chat`：本地对话

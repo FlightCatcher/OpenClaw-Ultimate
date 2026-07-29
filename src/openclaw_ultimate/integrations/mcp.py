@@ -247,7 +247,7 @@ class StdioMcpClient:
                 "capabilities": {},
                 "clientInfo": {
                     "name": "vela",
-                    "version": "1.0.3",
+                    "version": "1.0.4",
                 },
             },
         )
