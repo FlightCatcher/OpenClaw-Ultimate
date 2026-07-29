@@ -248,3 +248,8 @@ work/
 
 # Node.js plugin dependencies
 node_modules/
+
+# Native VELA desktop branding assets are source files, not Python build output.
+!integrations/vela-desktop/build/
+integrations/vela-desktop/build/*.png
+!integrations/vela-desktop/build/vela-icon.ico

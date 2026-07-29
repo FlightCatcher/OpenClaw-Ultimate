@@ -1,31 +1,64 @@
 param(
-    [string]$ProjectRoot = (Split-Path -Parent $PSScriptRoot)
+    [string]$ProjectRoot = (Split-Path -Parent $PSScriptRoot),
+    [switch]$SkipBuild
 )
 
 $ErrorActionPreference = "Stop"
 
 $resolvedRoot = (Resolve-Path -LiteralPath $ProjectRoot).Path
-$launcher = Join-Path $resolvedRoot "scripts\start_vela.ps1"
+$sourceRoot = Join-Path $resolvedRoot "integrations\vela-desktop"
+$appRoot = Join-Path $env:USERPROFILE ".openclaw\apps\openclaw-desktop"
+$distRoot = Join-Path $appRoot "dist"
+$executable = Join-Path $distRoot "VELA-Desktop.exe"
+$iconPath = Join-Path $appRoot "build\vela-icon.ico"
 $desktop = [Environment]::GetFolderPath("Desktop")
-$shortcutPath = Join-Path $desktop "VELA AI.lnk"
-$powershell = (Get-Command powershell.exe -ErrorAction Stop).Source
+$shortcutPath = Join-Path $desktop "VELA.lnk"
+
+if (-not (Test-Path -LiteralPath (Join-Path $sourceRoot "package.json") -PathType Leaf)) {
+    throw "VELA desktop source is missing: $sourceRoot"
+}
+
+New-Item -ItemType Directory -Force -Path $appRoot | Out-Null
+Copy-Item -LiteralPath (Join-Path $sourceRoot "package.json") -Destination $appRoot -Force
+Copy-Item -LiteralPath (Join-Path $sourceRoot "package-lock.json") -Destination $appRoot -Force
+Copy-Item -LiteralPath (Join-Path $sourceRoot "src") -Destination $appRoot -Recurse -Force
+Copy-Item -LiteralPath (Join-Path $sourceRoot "renderer") -Destination $appRoot -Recurse -Force
+Copy-Item -LiteralPath (Join-Path $sourceRoot "build") -Destination $appRoot -Recurse -Force
+
+if (-not $SkipBuild) {
+    Push-Location $appRoot
+    try {
+        & npm ci
+        if ($LASTEXITCODE -ne 0) {
+            throw "VELA desktop dependencies could not be installed."
+        }
+
+        & npm run build
+        if ($LASTEXITCODE -ne 0) {
+            throw "VELA desktop build failed."
+        }
+    }
+    finally {
+        Pop-Location
+    }
+}
+
+if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
+    throw "VELA desktop executable is missing: $executable"
+}
 
 $shell = New-Object -ComObject WScript.Shell
 $shortcut = $shell.CreateShortcut($shortcutPath)
-$shortcut.TargetPath = $powershell
-$shortcut.Arguments = (
-    "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden " +
-    "-File `"$launcher`" -ProjectRoot `"$resolvedRoot`""
-)
-$shortcut.WorkingDirectory = $resolvedRoot
-$shortcut.Description = "VELA local AI agent powered by OpenClaw"
-$openClawIcon = Join-Path ((& npm root -g).Trim()) "openclaw\dist\control-ui\favicon.ico"
-
-if (Test-Path -LiteralPath $openClawIcon -PathType Leaf) {
-    $shortcut.IconLocation = "$openClawIcon,0"
-}
-
+$shortcut.TargetPath = $executable
+$shortcut.WorkingDirectory = $distRoot
+$shortcut.IconLocation = "$iconPath,0"
+$shortcut.Description = "VELA local AI desktop"
 $shortcut.Save()
 
+$installedShortcut = $shell.CreateShortcut($shortcutPath)
+if ($installedShortcut.TargetPath -ne $executable) {
+    throw "VELA desktop shortcut verification failed."
+}
+
+Write-Host "[OK] Native VELA desktop installed: $executable"
 Write-Host "[OK] Desktop shortcut created: $shortcutPath"
-Write-Host "[OK] VELA uses the original OpenClaw Dashboard and icon."

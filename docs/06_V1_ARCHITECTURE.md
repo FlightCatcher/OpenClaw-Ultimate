@@ -40,10 +40,11 @@ Request
 
 ## UI
 
-VELA 复用 OpenClaw 原生 Dashboard，保留其图标、布局、会话管理、认证和插件机制。
-`scripts/apply_vela_openclaw_ui.ps1` 只添加可重复应用的品牌层，不改写 OpenClaw
-内部协议或前端程序包。OpenClaw 更新覆盖本地静态文件后，重新运行集成安装脚本即可。
+VELA Desktop 是独立打包的 Windows Electron 应用。它保留 OpenClaw Gateway 协议、
+认证、会话和工具兼容性，但拥有独立的 VELA 图标、黑灰蓝视觉系统和窗口生命周期。
+桌面端只在回环地址 `127.0.0.1:18790` 提供渲染资源，再连接
+`127.0.0.1:18789` 的 OpenClaw Gateway，因此不会打开或依赖浏览器窗口。
 
-原先由 Python API 提供的 Command Deck 保留为兼容界面，但不再是默认入口。默认
-桌面入口打开 `127.0.0.1:18789` 的已认证 Dashboard；兼容 API 继续只监听
-`127.0.0.1:8765`。
+桌面端源码位于 `integrations/vela-desktop`，安装脚本会构建
+`VELA-Desktop.exe` 并创建桌面快捷方式。OpenClaw Dashboard 与 Python Command Deck
+保留为兼容和诊断界面，但不再是默认入口；兼容 API 继续只监听 `127.0.0.1:8765`。

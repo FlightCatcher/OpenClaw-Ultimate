@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0 - 2026-07-29
+
+- Shipped VELA Desktop as a standalone Windows application instead of a browser launcher.
+- Added a black, graphite and electric-blue interface with a new original VELA icon.
+- Preserved existing OpenClaw sessions, Gateway authentication, tools, attachments and ComfyUI.
+- Verified a real DeepSeek conversation through the packaged desktop executable.
+- Added reproducible desktop source, build, install and launch automation.
+- Retired the old OpenClaw executable and browser shortcuts after successful validation.
+
 ## 1.0.4 - 2026-07-29
 
 - Reused the original OpenClaw Dashboard as VELA's primary local interface.

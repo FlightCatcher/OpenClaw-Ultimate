@@ -22,7 +22,7 @@ MCP、安全确认和审计记录组合为一个真正可执行的本地工作�
 - 使用 OpenClaw Browser 读取公开网页，使用 ComfyUI 生成图片。
 - 通过白名单 stdio MCP 调用工具；内置 `vela-local` MCP 服务用于真实链路验收。
 - 对写入、删除和高风险命令执行一次性人工确认，并留下 SQLite 审计记录。
-- 通过原生 OpenClaw Dashboard（VELA 品牌层）管理对话、任务和集成状态。
+- 通过独立的 VELA Windows 桌面端管理对话、附件、生图和本地连接状态。
 - 备份本地状态、检查数据库完整性，并通过 Windows/Linux CI 自动回归。
 
 ## 系统结构
@@ -30,7 +30,7 @@ MCP、安全确认和审计记录组合为一个真正可执行的本地工作�
 ```text
 User
   │
-  ├── VELA Dashboard（原生 OpenClaw UI）
+  ├── VELA Desktop（原生 Windows 应用）
   ├── CLI
   └── Compatibility API
         │
@@ -67,21 +67,22 @@ VELA 默认只让一个 4B–8B 模型常驻显存，驻留预算为 6.5 GiB，�
 .\scripts\install_vela.ps1
 ```
 
-之后双击桌面的 **VELA AI**，或运行：
+之后双击桌面的 **VELA**，或运行：
 
 ```powershell
 .\scripts\start_vela.ps1
 ```
 
-桌面快捷方式会打开原生 OpenClaw Dashboard。原图标、页面布局、会话和插件机制
-保持不变，用户可见品牌显示为 VELA：
+桌面快捷方式会打开独立的 Windows 应用，不会打开浏览器。VELA Desktop 通过本机
+OpenClaw Gateway 保留既有会话、工具、附件、生图能力和认证：
 
 ```text
-http://127.0.0.1:18789/
+VELA Desktop → 127.0.0.1:18790 → OpenClaw Gateway 127.0.0.1:18789
 ```
 
 聊天继续使用当前 OpenClaw 配置中的 DeepSeek API 主模型；本地 Ollama 模型只作为
-故障回退。独立的 `8765` API/UI 保留用于兼容和调试，不再是默认用户界面。
+故障回退。浏览器 Dashboard 和独立的 `8765` API/UI 仅保留用于兼容和调试，不再是
+默认用户界面。
 
 需要前台运行兼容 API 时：
 

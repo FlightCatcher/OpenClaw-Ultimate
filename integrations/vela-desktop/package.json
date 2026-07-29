@@ -1,0 +1,48 @@
+{
+  "name": "vela-desktop",
+  "version": "4.0.0",
+  "private": true,
+  "type": "module",
+  "description": "VELA local AI desktop powered by OpenClaw and DeepSeek.",
+  "main": "src/main.mjs",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win portable --x64"
+  },
+  "dependencies": {
+    "dompurify": "3.4.12",
+    "marked": "18.0.7"
+  },
+  "devDependencies": {
+    "electron": "43.2.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "local.vela.desktop",
+    "productName": "VELA",
+    "asar": true,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "renderer/**/*",
+      "build/vela-icon.ico",
+      "package.json"
+    ],
+    "win": {
+      "icon": "build/vela-icon.ico",
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "portable": {
+      "artifactName": "VELA-Desktop.exe"
+    }
+  }
+}

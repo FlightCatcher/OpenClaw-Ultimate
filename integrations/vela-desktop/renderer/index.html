@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <title>VELA</title>
+    <link rel="stylesheet" href="/styles.css?v=4.0.0" />
+    <link rel="stylesheet" href="/vela.css?v=4.0.0" />
+  </head>
+  <body>
+    <div id="app" class="app-shell">
+      <header class="titlebar">
+        <div class="titlebar__brand">
+          <span class="brand-mark" aria-hidden="true">
+            <img class="vela-logo" src="/vela-icon.png" alt="" />
+          </span>
+          <span>VELA</span>
+          <small>LOCAL AGENT</small>
+        </div>
+      </header>
+
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar__top">
+          <button class="new-chat-button" id="new-chat-button" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            <span data-i18n="newChat">新对话</span>
+          </button>
+        </div>
+
+        <div class="sidebar__section-label" data-i18n="recents">最近</div>
+        <nav class="session-list" id="session-list" aria-label="Sessions"></nav>
+
+        <div class="sidebar__footer">
+          <div class="connection-pill" id="connection-pill">
+            <span class="connection-dot"></span>
+            <span id="connection-label" data-i18n="connecting">正在连接</span>
+          </div>
+          <div class="footer-actions">
+            <button class="icon-button icon-button--sidebar" id="language-button" type="button" aria-label="Language">
+              <span id="language-label">EN</span>
+            </button>
+            <button class="icon-button icon-button--sidebar" id="theme-button" type="button" aria-label="Theme">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="chat-header">
+          <button class="icon-button mobile-sidebar-button" id="sidebar-button" type="button" aria-label="Menu">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+          </button>
+          <div class="chat-header__identity">
+            <strong id="chat-title">VELA</strong>
+            <span data-i18n="localAgent">本地智能体</span>
+          </div>
+          <div class="chat-header__right">
+            <button class="text-button" id="retry-button" type="button" hidden data-i18n="reconnect">重新连接</button>
+            <div class="privacy-badge">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 10V7a4 4 0 0 1 8 0v3M6 10h12v10H6z" />
+              </svg>
+              <span data-i18n="localPrivate">本地 · 私密</span>
+            </div>
+          </div>
+        </header>
+
+        <section class="chat-scroll" id="chat-scroll">
+          <div class="chat-content" id="chat-content"></div>
+        </section>
+
+        <section class="composer-area">
+          <div class="attachment-strip" id="attachment-strip" hidden></div>
+          <div class="composer" id="composer">
+            <div class="image-studio" id="image-studio" hidden>
+              <div class="image-studio__header">
+                <div>
+                  <strong data-i18n="imageStudioTitle">图像工作室</strong>
+                  <span data-i18n="imageStudioHint">角色参考 · RealVisXL · 低占用</span>
+                </div>
+                <span class="image-studio__badge">4K</span>
+              </div>
+
+              <div class="image-studio__group">
+                <span class="image-studio__label" data-i18n="imageAspect">画幅</span>
+                <div class="image-studio__choices image-studio__choices--aspect">
+                  <button class="studio-choice" type="button" data-image-aspect="square"><i class="ratio-shape ratio-shape--square"></i><span>1:1</span></button>
+                  <button class="studio-choice" type="button" data-image-aspect="landscape"><i class="ratio-shape ratio-shape--landscape"></i><span>16:9</span></button>
+                  <button class="studio-choice" type="button" data-image-aspect="portrait"><i class="ratio-shape ratio-shape--portrait"></i><span>9:16</span></button>
+                  <button class="studio-choice" type="button" data-image-aspect="classic"><i class="ratio-shape ratio-shape--classic"></i><span>4:3</span></button>
+                  <button class="studio-choice" type="button" data-image-aspect="vertical"><i class="ratio-shape ratio-shape--vertical"></i><span>3:4</span></button>
+                  <button class="studio-choice" type="button" data-image-aspect="photo"><i class="ratio-shape ratio-shape--photo"></i><span>3:2</span></button>
+                </div>
+              </div>
+
+              <div class="image-studio__row">
+                <div class="image-studio__group">
+                  <span class="image-studio__label" data-i18n="imageStyle">质感</span>
+                  <div class="image-studio__choices">
+                    <button class="studio-choice studio-choice--text" type="button" data-image-style="auto" data-i18n="styleAuto">智能</button>
+                    <button class="studio-choice studio-choice--text" type="button" data-image-style="natural" data-i18n="styleNatural">自然</button>
+                    <button class="studio-choice studio-choice--text" type="button" data-image-style="cinematic" data-i18n="styleCinematic">电影</button>
+                    <button class="studio-choice studio-choice--text" type="button" data-image-style="photo" data-i18n="stylePhoto">摄影</button>
+                    <button class="studio-choice studio-choice--text" type="button" data-image-style="anime" data-i18n="styleAnime">动漫</button>
+                    <button class="studio-choice studio-choice--text" type="button" data-image-style="illustration" data-i18n="styleIllustration">插画</button>
+                    <button class="studio-choice studio-choice--text" type="button" data-image-style="product" data-i18n="styleProduct">产品</button>
+                  </div>
+                </div>
+
+                <div class="image-studio__group image-studio__group--quality">
+                  <span class="image-studio__label" data-i18n="imageQuality">质量</span>
+                  <div class="image-studio__choices">
+                    <button class="studio-choice studio-choice--text" type="button" data-image-quality="standard" data-i18n="qualityStandard">快速 10 步</button>
+                    <button class="studio-choice studio-choice--text" type="button" data-image-quality="high" data-i18n="qualityHigh">推荐 28 步</button>
+                    <button class="studio-choice studio-choice--text" type="button" data-image-quality="ultra" data-i18n="qualityUltra">极致 38 步</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="image-studio__reference">
+                <div class="image-studio__group">
+                  <span class="image-studio__label" data-i18n="imageReference">角色参考</span>
+                  <div class="image-studio__choices">
+                    <button class="studio-choice studio-choice--text" type="button" data-image-reference="smart" data-i18n="referenceSmart">自动学习</button>
+                    <button class="studio-choice studio-choice--text" type="button" data-image-reference="strict" data-i18n="referenceStrict">严格还原</button>
+                    <button class="studio-choice studio-choice--text" type="button" data-image-reference="off" data-i18n="referenceOff">关闭</button>
+                  </div>
+                </div>
+                <span class="image-studio__reference-hint" data-i18n="referenceHint">自动学习更快；严格还原使用 FLUX.2 原生参考编辑</span>
+              </div>
+              <div class="image-studio__text-row">
+                <span class="image-studio__label" data-i18n="textFidelity">文字清晰</span>
+                <div class="image-studio__choices">
+                  <button class="studio-choice studio-choice--text" type="button" data-image-text="auto" data-i18n="textAuto">智能</button>
+                  <button class="studio-choice studio-choice--text" type="button" data-image-text="clear" data-i18n="textClear">清晰排版</button>
+                  <button class="studio-choice studio-choice--text" type="button" data-image-text="none" data-i18n="textNone">无文字</button>
+                </div>
+              </div>
+            </div>
+            <textarea
+              id="composer-input"
+              rows="1"
+              autocomplete="off"
+              data-i18n-placeholder="messagePlaceholder"
+              placeholder="给 VELA 发消息"
+            ></textarea>
+            <div class="composer__bottom">
+              <div class="composer__tools">
+                <button class="tool-button" id="attach-button" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="m8.5 12.5 6.8-6.8a3 3 0 0 1 4.2 4.2l-8.4 8.4a5 5 0 0 1-7.1-7.1l8-8" />
+                  </svg>
+                  <span data-i18n="attach">文件</span>
+                </button>
+                <button class="tool-button" id="image-mode-button" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 5h16v14H4zM4 16l5-5 4 4 2-2 5 5M16.5 9h.01" />
+                  </svg>
+                  <span data-i18n="imageMode">生图</span>
+                </button>
+              </div>
+              <div class="composer__actions">
+                <span class="send-hint" data-i18n="sendHint">Enter 发送</span>
+                <button class="send-button" id="send-button" type="button" aria-label="Send">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 19V5M6 11l6-6 6 6" />
+                  </svg>
+                </button>
+                <button class="send-button send-button--stop" id="stop-button" type="button" aria-label="Stop" hidden>
+                  <span></span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <p class="composer-note" data-i18n="modelNote">DeepSeek 主模型 · OpenClaw 本地执行引擎</p>
+        </section>
+      </main>
+
+      <div class="drop-overlay" id="drop-overlay">
+        <div>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 16V4M7 9l5-5 5 5M5 14v5h14v-5" />
+          </svg>
+          <strong data-i18n="dropFiles">释放以上传文件</strong>
+        </div>
+      </div>
+
+      <dialog class="media-dialog" id="media-dialog">
+        <button class="media-dialog__close" id="media-close" type="button" aria-label="Close">×</button>
+        <img id="media-dialog-image" alt="" />
+      </dialog>
+
+      <input
+        id="file-input"
+        type="file"
+        multiple
+        accept="image/*,audio/*,video/*,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.json"
+        hidden
+      />
+      <div class="toast-region" id="toast-region" aria-live="polite"></div>
+    </div>
+    <script type="module" src="/app.js?v=4.0.0"></script>
+  </body>
+</html>

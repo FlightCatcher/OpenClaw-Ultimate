@@ -1,0 +1,210 @@
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #070a10;
+  --surface: #10151e;
+  --surface-2: #171e2a;
+  --text: #edf4ff;
+  --muted: #8190a6;
+  --border: rgba(128, 170, 230, 0.14);
+  --border-strong: rgba(83, 160, 255, 0.38);
+  --sidebar: rgba(9, 13, 20, 0.96);
+  --sidebar-text: #e8f1ff;
+  --sidebar-muted: #718099;
+  --sidebar-hover: rgba(45, 104, 180, 0.16);
+  --accent: #2e8cff;
+  --accent-text: #f7fbff;
+  --shadow: 0 24px 74px rgba(0, 0, 0, 0.48);
+}
+
+body,
+:root[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at 72% -8%, rgba(34, 115, 255, 0.18), transparent 34%),
+    linear-gradient(rgba(74, 135, 220, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(74, 135, 220, 0.035) 1px, transparent 1px),
+    #070a10;
+  background-size: auto, 32px 32px, 32px 32px, auto;
+}
+
+.app-shell {
+  background:
+    radial-gradient(circle at 17% 86%, rgba(0, 207, 255, 0.06), transparent 27%),
+    transparent;
+}
+
+.titlebar,
+:root[data-theme="dark"] .titlebar,
+.chat-header,
+:root[data-theme="dark"] .chat-header {
+  color: #eaf3ff;
+  background: rgba(8, 12, 19, 0.95);
+  border-color: rgba(83, 160, 255, 0.16);
+}
+
+.titlebar__brand {
+  color: #f3f8ff;
+  letter-spacing: 0.16em;
+}
+
+.titlebar__brand small {
+  padding-left: 10px;
+  color: #5a718e;
+  border-left: 1px solid rgba(104, 157, 224, 0.22);
+  font-size: 8px;
+  font-weight: 650;
+  letter-spacing: 0.18em;
+}
+
+.brand-mark,
+:root[data-theme="dark"] .brand-mark {
+  overflow: hidden;
+  color: #ffffff;
+  background: linear-gradient(145deg, #101824, #06090e);
+  border: 1px solid rgba(69, 157, 255, 0.42);
+  box-shadow:
+    0 0 0 1px rgba(39, 109, 207, 0.08),
+    0 0 22px rgba(26, 128, 255, 0.2);
+}
+
+.vela-logo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.sidebar,
+:root[data-theme="dark"] .sidebar {
+  color: var(--sidebar-text);
+  background: linear-gradient(180deg, rgba(17, 23, 34, 0.97), rgba(7, 10, 16, 0.99));
+  border-color: rgba(102, 159, 230, 0.13);
+}
+
+.sidebar__footer,
+:root[data-theme="dark"] .sidebar__footer {
+  background: rgba(7, 10, 16, 0.82);
+  border-color: rgba(102, 159, 230, 0.12);
+}
+
+.new-chat-button,
+:root[data-theme="dark"] .new-chat-button {
+  color: #ffffff;
+  background: linear-gradient(135deg, #1f77e6, #24a5ff);
+  border-color: rgba(118, 195, 255, 0.48);
+  box-shadow:
+    0 12px 28px rgba(20, 111, 230, 0.25),
+    inset 0 1px rgba(255, 255, 255, 0.16);
+}
+
+.new-chat-button:hover {
+  background: linear-gradient(135deg, #328bf8, #3ab3ff);
+}
+
+.session-item:hover,
+.session-item.is-active,
+:root[data-theme="dark"] .session-item:hover,
+:root[data-theme="dark"] .session-item.is-active {
+  color: #eef6ff;
+  background: linear-gradient(90deg, rgba(39, 126, 241, 0.22), rgba(39, 126, 241, 0.06));
+}
+
+.session-item.is-active {
+  box-shadow: inset 3px 0 #35a4ff;
+}
+
+.connection-dot {
+  background: #3cd9a2;
+  box-shadow: 0 0 14px rgba(60, 217, 162, 0.65);
+}
+
+.main,
+:root[data-theme="dark"] .main {
+  background: linear-gradient(180deg, rgba(13, 18, 27, 0.84), rgba(7, 10, 16, 0.9));
+  border-color: rgba(105, 164, 236, 0.15);
+}
+
+.privacy-badge {
+  color: #9db6d8;
+  background: rgba(18, 28, 42, 0.82);
+  border-color: rgba(97, 164, 244, 0.18);
+}
+
+.message-avatar {
+  padding: 5px;
+  overflow: hidden;
+  background: linear-gradient(145deg, #111a27, #070b11);
+  border-color: rgba(69, 157, 255, 0.38);
+  box-shadow: 0 0 20px rgba(24, 118, 238, 0.13);
+}
+
+.empty-mark {
+  padding: 12px;
+  overflow: hidden;
+  background: linear-gradient(145deg, #111b29, #070a10);
+  border-color: rgba(71, 160, 255, 0.42);
+  box-shadow:
+    0 24px 55px rgba(0, 0, 0, 0.38),
+    0 0 44px rgba(24, 120, 255, 0.14);
+}
+
+.quick-action,
+:root[data-theme="dark"] .quick-action {
+  background: linear-gradient(145deg, rgba(18, 25, 37, 0.94), rgba(11, 15, 23, 0.94));
+  border-color: rgba(99, 160, 232, 0.15);
+}
+
+.quick-action:hover {
+  border-color: rgba(76, 163, 255, 0.46);
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.34);
+}
+
+.message-row--user .message-body,
+:root[data-theme="dark"] .message-row--user .message-body {
+  color: #f4f9ff;
+  background: linear-gradient(135deg, rgba(38, 112, 215, 0.9), rgba(31, 78, 145, 0.9));
+  border-color: rgba(93, 177, 255, 0.35);
+}
+
+.composer,
+:root[data-theme="dark"] .composer {
+  background: rgba(13, 19, 29, 0.94);
+  border-color: rgba(89, 158, 242, 0.24);
+  box-shadow:
+    0 24px 58px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(32, 102, 191, 0.06);
+}
+
+.composer:focus-within {
+  border-color: rgba(69, 157, 255, 0.62);
+  box-shadow:
+    0 25px 65px rgba(0, 0, 0, 0.48),
+    0 0 30px rgba(28, 121, 242, 0.12);
+}
+
+.tool-button,
+:root[data-theme="dark"] .tool-button,
+.tool-button:hover,
+:root[data-theme="dark"] .tool-button:hover {
+  color: #9aacc4;
+  background: rgba(19, 28, 41, 0.86);
+  border-color: rgba(103, 159, 227, 0.16);
+}
+
+.send-button {
+  color: #ffffff;
+  background: linear-gradient(145deg, #318cff, #1aa9ff);
+  box-shadow:
+    0 10px 24px rgba(30, 126, 245, 0.3),
+    inset 0 1px rgba(255, 255, 255, 0.17);
+}
+
+.composer-note {
+  color: #5e7089;
+  letter-spacing: 0.03em;
+}
+
+button:focus-visible,
+textarea:focus-visible {
+  outline-color: #49a7ff;
+}

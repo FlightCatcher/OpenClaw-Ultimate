@@ -27,4 +27,4 @@ if ($LASTEXITCODE -ne 0) { throw "Database integrity failed." }
 & uv --directory $resolvedRoot run python scripts\benchmark_vela.py
 if ($LASTEXITCODE -ne 0) { throw "Foundation benchmark failed." }
 
-Write-Host "[OK] VELA v1.0 release checks passed."
+Write-Host "[OK] VELA v1.1 release checks passed."
