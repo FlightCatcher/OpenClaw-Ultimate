@@ -423,11 +423,15 @@ def _register_mcp_tools(
     agent: Agent,
     settings: Settings,
 ) -> None:
-    if not settings.mcp_enabled or not settings.mcp_servers_path.is_file():
+    mcp_path = settings.mcp_servers_path.expanduser()
+    if not mcp_path.is_absolute():
+        mcp_path = settings.workspace_root.expanduser().resolve() / mcp_path
+
+    if not settings.mcp_enabled or not mcp_path.is_file():
         return
 
     registry = McpServerRegistry.load(
-        settings.mcp_servers_path,
+        mcp_path,
         project_root=settings.workspace_root,
     )
 

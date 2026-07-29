@@ -155,13 +155,16 @@ def test_api_serves_vela_ui_and_meta(tmp_path) -> None:
     )
 
     page = application.dispatch("GET", "/")
+    avatar = application.dispatch("GET", "/assets/vela-avatar.png")
     meta = application.dispatch("GET", "/v1/meta")
 
     assert page.status == 200
     assert isinstance(page.payload, bytes)
     assert b"VELA" in page.payload
+    assert avatar.status == 200
+    assert avatar.content_type == "image/png"
     assert meta.payload["data"]["name"] == "VELA"
-    assert meta.payload["data"]["version"] == "1.0.2"
+    assert meta.payload["data"]["version"] == "1.0.3"
 
 
 def test_memory_delete_requires_and_consumes_confirmation(tmp_path) -> None:

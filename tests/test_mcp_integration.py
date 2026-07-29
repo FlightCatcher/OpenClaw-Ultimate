@@ -45,6 +45,38 @@ def test_registry_loads_only_enabled_allowlisted_servers(
         registry.get("disabled")
 
 
+def test_registry_resolves_relative_config_against_project_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config_root = tmp_path / "project"
+    config_path = config_root / "configs" / "mcp.json"
+    config_path.parent.mkdir(parents=True)
+    config_path.write_text(
+        json.dumps(
+            {
+                "servers": [
+                    {
+                        "name": "local",
+                        "command": ["python", "server.py"],
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    unrelated_root = tmp_path / "unrelated"
+    unrelated_root.mkdir()
+    monkeypatch.chdir(unrelated_root)
+
+    registry = McpServerRegistry.load(
+        Path("configs/mcp.json"),
+        project_root=config_root,
+    )
+
+    assert registry.names() == ("local",)
+
+
 def test_stdio_mcp_client_lists_and_calls_tools(
     tmp_path: Path,
 ) -> None:

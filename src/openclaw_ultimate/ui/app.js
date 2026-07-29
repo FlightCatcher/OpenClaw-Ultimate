@@ -10,24 +10,37 @@ const state = {
   audit: [],
   knowledge: null,
   mcp: null,
+  lastFailedMessage: null,
 };
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
 async function api(path, options = {}) {
-  const response = await fetch(path, {
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-    ...options,
-  });
-  const data = await response.json();
-  if (!response.ok) {
-    const error = new Error(data?.error?.message || `请求失败：${response.status}`);
-    error.status = response.status;
-    error.payload = data;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), options.timeout ?? 20000);
+  try {
+    const response = await fetch(path, {
+      headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+      ...options,
+      signal: options.signal || controller.signal,
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      const error = new Error(data?.error?.message || `请求失败：${response.status}`);
+      error.status = response.status;
+      error.payload = data;
+      throw error;
+    }
+    return data.data ?? data;
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error("本地服务响应超时，请检查模型或组件状态。");
+    }
     throw error;
+  } finally {
+    clearTimeout(timeout);
   }
-  return data.data ?? data;
 }
 
 function escapeHtml(value) {
@@ -85,11 +98,11 @@ function showView(name) {
 async function loadMeta() {
   state.meta = await api("/v1/meta");
   $("#version-label").textContent = `${state.meta.legacy_name} compatibility · v${state.meta.version}`;
+  $("#system-pill").innerHTML = "<i></i>本地服务在线";
 }
 
 async function loadStatus() {
-  const response = await fetch("/health");
-  const report = await response.json();
+  const report = await api("/health", { timeout: 60000 });
   state.diagnostics = report.components || [];
   const pill = $("#system-pill");
   pill.classList.toggle("offline", !report.ok);
@@ -103,7 +116,11 @@ function renderStatus() {
   const ready = state.diagnostics.filter((item) => item.state === "ready").length;
   const planDone = state.plans.filter((item) => item.status === "completed").length;
   const metrics = [
-    ["可用组件", `${ready}/${state.diagnostics.length}`, "实时健康检查"],
+    [
+      "可用组件",
+      state.diagnostics.length ? `${ready}/${state.diagnostics.length}` : "检查中",
+      "实时健康检查",
+    ],
     ["任务计划", state.plans.length, `${planDone} 个已完成`],
     [
       "知识文档",
@@ -120,7 +137,7 @@ function renderStatus() {
       <div><strong>${escapeHtml(item.name)}</strong><p title="${escapeHtml(item.detail)}">${escapeHtml(item.detail)}</p></div>
       <span class="state ${item.state}">${escapeHtml(item.state)}</span>
     </div>
-  `).join("") || `<div class="empty-state small"><p>没有诊断数据</p></div>`;
+  `).join("") || `<div class="empty-state small"><p>正在检查本地组件…</p></div>`;
   const integrations = [
     ["OC", "OpenClaw", component("openclaw")],
     ["OL", "Ollama", component("ollama")],
@@ -242,16 +259,59 @@ async function planAction(action, button) {
 }
 
 async function sendChat(message, button) {
-  if (!message.trim()) return;
+  const cleanMessage = message.trim();
+  if (!cleanMessage) return;
   const log = $("#chat-log");
-  log.insertAdjacentHTML("beforeend", `<div class="message user"><span>YOU</span><p>${escapeHtml(message)}</p></div>`);
+  log.insertAdjacentHTML("beforeend", `
+    <div class="message user">
+      <div class="message-avatar">YOU</div>
+      <div class="message-body"><span>YOU · LOCAL</span><p>${escapeHtml(cleanMessage)}</p></div>
+    </div>
+  `);
   $("#chat-message").value = "";
   setBusy(button, true, "思考中…");
+  const pendingId = `pending-${Date.now()}`;
+  log.insertAdjacentHTML("beforeend", `
+    <div class="message assistant pending" id="${pendingId}">
+      <img class="message-avatar" src="/assets/vela-avatar.png" alt="">
+      <div class="message-body">
+        <span>VELA · PROCESSING</span>
+        <p><i class="thinking-dot"></i><i class="thinking-dot"></i><i class="thinking-dot"></i>正在通过本地模型处理</p>
+      </div>
+    </div>
+  `);
+  log.scrollTop = log.scrollHeight;
   try {
-    const result = await api("/v1/chat", { method: "POST", body: JSON.stringify({ message }) });
-    log.insertAdjacentHTML("beforeend", `<div class="message assistant"><span>VELA</span><p>${escapeHtml(result.output)}</p></div>`);
+    const result = await api("/v1/chat", {
+      method: "POST",
+      body: JSON.stringify({ message: cleanMessage }),
+      timeout: 180000,
+    });
+    $(`#${pendingId}`)?.remove();
+    state.lastFailedMessage = null;
+    log.insertAdjacentHTML("beforeend", `
+      <div class="message assistant">
+        <img class="message-avatar" src="/assets/vela-avatar.png" alt="">
+        <div class="message-body">
+          <span>VELA · ${Number(result.steps || 1)} LOCAL STEP${Number(result.steps || 1) === 1 ? "" : "S"}</span>
+          <p>${escapeHtml(result.output)}</p>
+        </div>
+      </div>
+    `);
   } catch (error) {
-    log.insertAdjacentHTML("beforeend", `<div class="message assistant"><span>ERROR</span><p>${escapeHtml(error.message)}</p></div>`);
+    $(`#${pendingId}`)?.remove();
+    state.lastFailedMessage = cleanMessage;
+    const errorType = error.payload?.error?.type || "LocalConnectionError";
+    log.insertAdjacentHTML("beforeend", `
+      <div class="message assistant error">
+        <img class="message-avatar" src="/assets/vela-avatar.png" alt="">
+        <div class="message-body">
+          <span>VELA · ${escapeHtml(errorType)}</span>
+          <p>这次本地处理没有完成：${escapeHtml(error.message)}</p>
+          <button class="secondary retry-chat" type="button" data-retry-chat>重试这条消息</button>
+        </div>
+      </div>
+    `);
   } finally {
     setBusy(button, false);
     log.scrollTop = log.scrollHeight;
@@ -381,17 +441,23 @@ async function refreshAll() {
   const button = $("#refresh-all");
   setBusy(button, true, "…");
   try {
-    // Keep local SQLite and subprocess-backed integrations calm on modest
-    // Windows hardware. Sequential refresh is fast enough and avoids a burst
-    // of competing database and MCP operations.
     await loadMeta();
-    await loadPlans();
-    await loadKnowledge();
-    await loadMemories();
-    await loadSafety();
-    await loadMcp();
-    await loadStatus();
-    toast("本地状态已刷新");
+    loadStatus().catch(() => {
+      $("#system-pill").innerHTML = "<i></i>本地服务在线";
+    });
+    const results = await Promise.allSettled([
+      loadPlans(),
+      loadKnowledge(),
+      loadMemories(),
+      loadSafety(),
+      loadMcp(),
+    ]);
+    const failed = results.filter((result) => result.status === "rejected");
+    if (failed.length) {
+      toast(`${failed.length} 个模块暂时未响应，其他功能仍可使用`, "error");
+    } else {
+      toast("本地状态已刷新");
+    }
   } catch (error) {
     $("#system-pill").classList.add("offline");
     $("#system-pill").innerHTML = "<i></i>连接失败";
@@ -414,6 +480,11 @@ document.addEventListener("click", async (event) => {
   if (confirmation) await resolveConfirmation(confirmation.dataset.confirm, confirmation.dataset.decision, confirmation);
   const mcp = event.target.closest("[data-mcp-test]");
   if (mcp) await testMcp(mcp.dataset.mcpTest, mcp);
+  const retry = event.target.closest("[data-retry-chat]");
+  if (retry && state.lastFailedMessage) {
+    retry.closest(".message")?.remove();
+    await sendChat(state.lastFailedMessage, $("#chat-form button[type='submit']"));
+  }
 });
 
 $("#quick-plan-form").addEventListener("submit", (event) => {

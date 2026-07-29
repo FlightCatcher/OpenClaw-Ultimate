@@ -77,14 +77,21 @@ class McpServerRegistry:
         *,
         project_root: Path | None = None,
     ) -> McpServerRegistry:
+        config_path = path.expanduser()
+        if not config_path.is_absolute() and project_root is not None:
+            config_path = project_root.expanduser().resolve() / config_path
+        config_path = config_path.resolve()
+
         try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
+            payload = json.loads(config_path.read_text(encoding="utf-8"))
         except OSError as exc:
             raise McpConfigurationError(
-                f"Could not read MCP server config '{path}': {exc}"
+                f"Could not read MCP server config '{config_path}': {exc}"
             ) from exc
         except json.JSONDecodeError as exc:
-            raise McpConfigurationError(f"MCP server config '{path}' is not valid JSON.") from exc
+            raise McpConfigurationError(
+                f"MCP server config '{config_path}' is not valid JSON."
+            ) from exc
 
         raw_servers = payload.get("servers") if isinstance(payload, dict) else None
 
@@ -240,7 +247,7 @@ class StdioMcpClient:
                 "capabilities": {},
                 "clientInfo": {
                     "name": "vela",
-                    "version": "1.0.2",
+                    "version": "1.0.3",
                 },
             },
         )

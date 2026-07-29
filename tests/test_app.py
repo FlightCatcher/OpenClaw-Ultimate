@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from openclaw_ultimate.app import build_default_agent
 from openclaw_ultimate.config import Settings
 from openclaw_ultimate.models import OpenAICompatibleModel
@@ -44,3 +46,40 @@ def test_build_default_agent_can_enable_shell(
     agent = build_default_agent(settings)
 
     assert "run_command" in agent.tools
+
+
+def test_build_default_agent_loads_relative_mcp_config_from_workspace(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    config_path = tmp_path / "configs" / "mcp.json"
+    config_path.parent.mkdir()
+    config_path.write_text(
+        json.dumps(
+            {
+                "servers": [
+                    {
+                        "name": "local",
+                        "command": ["python", "server.py"],
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    unrelated = tmp_path / "unrelated"
+    unrelated.mkdir()
+    monkeypatch.chdir(unrelated)
+    settings = Settings(
+        _env_file=None,
+        workspace_root=tmp_path,
+        mcp_enabled=True,
+        mcp_servers_path="configs/mcp.json",
+        openclaw_enabled=False,
+        comfyui_enabled=False,
+        knowledge_enabled=False,
+    )
+
+    agent = build_default_agent(settings)
+
+    assert "list_mcp_tools" in agent.tools

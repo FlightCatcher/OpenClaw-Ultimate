@@ -59,8 +59,8 @@ $meta = Invoke-RestMethod `
     -Uri "http://127.0.0.1:$Port/v1/meta" `
     -TimeoutSec 30
 
-if ($meta.data.version -ne "1.0.2" -or $meta.data.name -ne "VELA") {
-    throw "VELA UI/API metadata is not v1.0.2."
+if ($meta.data.version -ne "1.0.3" -or $meta.data.name -ne "VELA") {
+    throw "VELA UI/API metadata is not v1.0.3."
 }
 
 $mcp = Invoke-RestMethod `

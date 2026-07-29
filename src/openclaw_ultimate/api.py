@@ -13,6 +13,7 @@ from http.server import (
 )
 from ipaddress import ip_address
 from pathlib import Path
+from threading import Lock
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -27,7 +28,7 @@ from openclaw_ultimate.branding import (
 )
 from openclaw_ultimate.bridge import handle_request
 from openclaw_ultimate.config import Settings, load_settings
-from openclaw_ultimate.core.runtime import AgentRuntime
+from openclaw_ultimate.core.runtime import Agent, AgentRuntime
 from openclaw_ultimate.diagnostics import (
     DiagnosticReport,
     collect_diagnostics,
@@ -82,6 +83,11 @@ class ApiApplication:
         self.settings = settings
         self._diagnostic_provider = diagnostic_provider
         self.governance = SQLiteGovernanceStore(settings.governance_db_path)
+        self.plan_store = SQLitePlanStore(settings.planner_db_path)
+        self.knowledge_store = SQLiteKnowledgeStore(settings.knowledge_db_path)
+        self.memory_store = SQLiteMemoryStore(settings.memory_db_path)
+        self._agent: Agent | None = None
+        self._agent_lock = Lock()
         self.ui_root = Path(__file__).with_name("ui")
 
     def dispatch(
@@ -132,7 +138,7 @@ class ApiApplication:
                 )
 
             if method == "GET" and path == "/v1/plans":
-                plans = SQLitePlanStore(self.settings.planner_db_path).list(
+                plans = self.plan_store.list(
                     limit=self._bounded_int(
                         payload.get("limit", 100),
                         minimum=1,
@@ -147,7 +153,7 @@ class ApiApplication:
                 )
 
             if method == "GET" and path == "/v1/knowledge/status":
-                stats = SQLiteKnowledgeStore(self.settings.knowledge_db_path).stats()
+                stats = self.knowledge_store.stats()
                 return self._ok(asdict(stats))
 
             if method == "POST" and path == "/v1/knowledge/search":
@@ -190,8 +196,7 @@ class ApiApplication:
                 return self._ok(asdict(index_report))
 
             if method == "GET" and path == "/v1/memories":
-                store = SQLiteMemoryStore(self.settings.memory_db_path)
-                memories = store.list(
+                memories = self.memory_store.list(
                     limit=self._bounded_int(
                         payload.get("limit", 100),
                         minimum=1,
@@ -226,7 +231,7 @@ class ApiApplication:
                     risk=RiskLevel.HIGH,
                     resource_id=memory_id,
                 )
-                SQLiteMemoryStore(self.settings.memory_db_path).delete(memory_id)
+                self.memory_store.delete(memory_id)
                 return self._ok({"deleted": memory_id})
 
             if method == "GET" and path == "/v1/audit":
@@ -333,7 +338,7 @@ class ApiApplication:
                     payload,
                     "message",
                 )
-                agent = build_default_agent(self.settings)
+                agent = self._chat_agent()
                 chat_result = asyncio.run(
                     AgentRuntime().run(
                         agent,
@@ -453,6 +458,7 @@ class ApiApplication:
             "/index.html": "index.html",
             "/assets/app.js": "app.js",
             "/assets/styles.css": "styles.css",
+            "/assets/vela-avatar.png": "vela-avatar.png",
         }.get(path)
         if relative is None:
             return None
@@ -477,7 +483,7 @@ class ApiApplication:
 
     def _memory(self) -> LongTermMemory:
         return LongTermMemory(
-            store=SQLiteMemoryStore(self.settings.memory_db_path),
+            store=self.memory_store,
             embedding_model=OpenAICompatibleEmbeddingModel(
                 model=self.settings.embedding_model,
                 base_url=self.settings.openai_base_url,
@@ -485,6 +491,14 @@ class ApiApplication:
                 timeout=self.settings.model_timeout,
             ),
         )
+
+    def _chat_agent(self) -> Agent:
+        if self._agent is not None:
+            return self._agent
+        with self._agent_lock:
+            if self._agent is None:
+                self._agent = build_default_agent(self.settings)
+        return self._agent
 
     @staticmethod
     def _serialize_memory(memory: Any) -> dict[str, Any]:
@@ -529,24 +543,23 @@ class ApiApplication:
         plan_id: str,
         operation: str,
     ) -> ApiResponse:
-        store = SQLitePlanStore(self.settings.planner_db_path)
-        plan = store.get(plan_id)
+        plan = self.plan_store.get(plan_id)
         if operation == "pause":
             self.governance.set_plan_control(plan_id, PlanControlState.PAUSE)
             if plan.status == PlanStatus.READY:
                 plan = plan.with_status(PlanStatus.PAUSED)
-                store.save(plan)
+                self.plan_store.save(plan)
         elif operation == "resume":
             if plan.status != PlanStatus.PAUSED:
                 raise ValueError("Only a paused plan can be resumed.")
             self.governance.set_plan_control(plan_id, PlanControlState.RUN)
             plan = plan.with_status(PlanStatus.READY)
-            store.save(plan)
+            self.plan_store.save(plan)
         elif operation == "cancel":
             self.governance.set_plan_control(plan_id, PlanControlState.CANCEL)
             if plan.status != PlanStatus.RUNNING:
                 plan = plan.with_status(PlanStatus.CANCELLED)
-                store.save(plan)
+                self.plan_store.save(plan)
         else:
             raise ValueError(f"Unknown plan control operation: {operation}")
         return self._ok({"plan": asdict(plan), "control": operation})

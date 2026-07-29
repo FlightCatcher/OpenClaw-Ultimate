@@ -93,7 +93,7 @@ def main() -> None:
                     {
                         "protocolVersion": "2025-06-18",
                         "capabilities": {"tools": {}},
-                        "serverInfo": {"name": "vela-local", "version": "1.0.2"},
+                        "serverInfo": {"name": "vela-local", "version": "1.0.3"},
                     },
                 )
             elif method == "tools/list":

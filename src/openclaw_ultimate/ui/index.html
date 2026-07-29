@@ -4,15 +4,19 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#07090d">
     <meta name="description" content="VELA 本地 AI Agent 操作系统控制台">
     <title>VELA · Local Agent Command Deck</title>
+    <link rel="icon" type="image/png" href="/assets/vela-avatar.png">
     <link rel="stylesheet" href="/assets/styles.css">
   </head>
   <body>
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
-          <div class="brand-mark" aria-hidden="true">V</div>
+          <div class="brand-mark">
+            <img src="/assets/vela-avatar.png" alt="VELA">
+          </div>
           <div>
             <strong>VELA</strong>
             <span>维澜 · LOCAL AGENT OS</span>
@@ -118,17 +122,26 @@
           <article class="panel chat-panel">
             <div class="panel-head">
               <div><p class="eyebrow">LOCAL CONVERSATION</p><h3>与 VELA 对话</h3></div>
-              <span class="model-chip">qwen3:8b</span>
+              <div class="chat-meta">
+                <span class="privacy-chip"><i></i>仅在本机</span>
+                <span class="model-chip">qwen3:8b</span>
+              </div>
             </div>
             <div class="chat-log" id="chat-log">
               <div class="message assistant">
-                <span>VELA</span>
-                <p>我已经连接到你的本地模型、OpenClaw、知识库和工具。告诉我你想完成什么。</p>
+                <img class="message-avatar" src="/assets/vela-avatar.png" alt="">
+                <div class="message-body">
+                  <span>VELA · LOCAL</span>
+                  <p>连接已经建立。你可以直接聊天，也可以让我读取本地项目、调用工具或创建任务计划。</p>
+                </div>
               </div>
             </div>
             <form id="chat-form" class="chat-composer">
-              <textarea id="chat-message" rows="2" placeholder="输入消息，Enter 发送，Shift+Enter 换行"></textarea>
-              <button class="primary" type="submit">发送</button>
+              <div class="composer-field">
+                <textarea id="chat-message" rows="2" placeholder="给 VELA 一条消息或任务…"></textarea>
+                <small>Enter 发送 · Shift+Enter 换行 · 对话仅经过本机服务</small>
+              </div>
+              <button class="primary send-button" type="submit"><span>发送</span><b>↑</b></button>
             </form>
           </article>
         </section>

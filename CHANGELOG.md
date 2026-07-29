@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.3 - 2026-07-29
+
+- Fixed Windows-relative MCP configuration resolution that could make local chat return HTTP 500.
+- Reused API stores and the chat agent to avoid repeated SQLite initialization and UI lock waits.
+- Added an original AI-generated VELA avatar and a black, graphite and electric-blue local UI.
+- Improved chat progress, local-only status, structured errors and one-click retry.
+
 ## 1.0.2 - 2026-07-29
 
 - Limited GitHub Release uploads to the VELA wheel and source archive.
