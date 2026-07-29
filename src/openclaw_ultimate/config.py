@@ -58,6 +58,9 @@ class Settings(BaseSettings):
     memory_similarity_threshold: float = 0.35
     memory_max_context_characters: int = 2000
 
+    planner_db_path: Path = Path(".openclaw/plans.db")
+    planner_max_steps: int = 12
+
     @property
     def openai_base_url(self) -> str:
         """返回 OpenAI-Compatible API 基础地址。"""
@@ -130,6 +133,7 @@ class Settings(BaseSettings):
         "workspace_max_read_bytes",
         "workspace_max_results",
         "shell_max_output_characters",
+        "planner_max_steps",
     )
     @classmethod
     def validate_positive_memory_limits(

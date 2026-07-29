@@ -28,6 +28,13 @@ from openclaw_ultimate.memory import (
 from openclaw_ultimate.models import (
     OpenAICompatibleEmbeddingModel,
 )
+from openclaw_ultimate.planner import (
+    PlanNotFoundError,
+    SQLitePlanStore,
+    StructuredPlanner,
+    TaskGraph,
+    TaskPlan,
+)
 from openclaw_ultimate.sessions import (
     SessionNotFoundError,
     SQLiteSessionStore,
@@ -47,6 +54,10 @@ memory_app = typer.Typer(
     no_args_is_help=True,
     help="管理跨会话长期记忆",
 )
+plan_app = typer.Typer(
+    no_args_is_help=True,
+    help="创建和管理结构化任务计划",
+)
 
 app.add_typer(
     session_app,
@@ -55,6 +66,10 @@ app.add_typer(
 app.add_typer(
     memory_app,
     name="memory",
+)
+app.add_typer(
+    plan_app,
+    name="plan",
 )
 
 console = Console()
@@ -786,6 +801,138 @@ def memory_delete(
 
     store.delete(memory_id)
     console.print(f"[green]长期记忆已删除：{memory_id}[/green]")
+
+
+def _get_plan_store(
+    settings: Settings | None = None,
+) -> SQLitePlanStore:
+    current_settings = settings or load_settings()
+
+    return SQLitePlanStore(current_settings.planner_db_path)
+
+
+@plan_app.command("create")
+def plan_create(
+    goal: str = typer.Argument(
+        ...,
+        help="需要拆解的任务目标。",
+    ),
+) -> None:
+    """使用当前模型生成并保存 DAG 任务计划。"""
+
+    async def run() -> None:
+        settings = load_settings()
+        agent = build_default_agent(settings)
+        planner = StructuredPlanner(
+            agent.model,
+            max_steps=settings.planner_max_steps,
+        )
+        plan = await planner.create_plan(
+            goal,
+            tools=agent.tools.definitions(),
+        )
+        _get_plan_store(settings).save(plan)
+        _print_plan(plan)
+        console.print(f"[green]计划已保存：{plan.id}[/green]")
+
+    asyncio.run(run())
+
+
+@plan_app.command("list")
+def plan_list(
+    limit: int = typer.Option(
+        20,
+        "--limit",
+        "-n",
+        min=1,
+        max=200,
+    ),
+) -> None:
+    """列出最近的任务计划。"""
+
+    plans = _get_plan_store().list(limit=limit)
+
+    if not plans:
+        console.print("[yellow]还没有任务计划。[/yellow]")
+        return
+
+    table = Table(title="任务计划")
+    table.add_column("计划 ID", style="cyan")
+    table.add_column("状态")
+    table.add_column("步骤", justify="right")
+    table.add_column("目标", overflow="fold")
+
+    for plan in plans:
+        table.add_row(
+            plan.id,
+            plan.status.value,
+            str(len(plan.steps)),
+            plan.goal,
+        )
+
+    console.print(table)
+
+
+@plan_app.command("show")
+def plan_show(
+    plan_id: str = typer.Argument(...),
+) -> None:
+    """显示任务计划及依赖关系。"""
+
+    try:
+        plan = _get_plan_store().get(plan_id)
+    except PlanNotFoundError as exc:
+        console.print(f"[red]计划不存在：{plan_id}[/red]")
+        raise typer.Exit(code=1) from exc
+
+    _print_plan(plan)
+
+
+@plan_app.command("delete")
+def plan_delete(
+    plan_id: str = typer.Argument(...),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+    ),
+) -> None:
+    """删除一个任务计划。"""
+
+    store = _get_plan_store()
+
+    try:
+        plan = store.get(plan_id)
+    except PlanNotFoundError as exc:
+        console.print(f"[red]计划不存在：{plan_id}[/red]")
+        raise typer.Exit(code=1) from exc
+
+    if not yes and not typer.confirm(f"确定删除计划“{plan.goal}”吗？"):
+        raise typer.Abort()
+
+    store.delete(plan_id)
+    console.print(f"[green]计划已删除：{plan_id}[/green]")
+
+
+def _print_plan(plan: TaskPlan) -> None:
+    graph = TaskGraph(plan.steps)
+    table = Table(title=f"任务计划：{plan.goal}")
+    table.add_column("步骤", style="cyan")
+    table.add_column("状态")
+    table.add_column("依赖")
+    table.add_column("工具")
+    table.add_column("说明", overflow="fold")
+
+    for step in graph.topological_order():
+        table.add_row(
+            step.id,
+            step.status.value,
+            ", ".join(step.dependencies) or "-",
+            step.tool_hint or "-",
+            f"{step.title}\n{step.description}",
+        )
+
+    console.print(table)
 
 
 if __name__ == "__main__":

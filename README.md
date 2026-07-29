@@ -15,6 +15,7 @@ OpenClaw Ultimate 当前可以连接 Ollama，通过异步 Agent Runtime
 - 基于向量检索的长期记忆
 - 受工作区边界保护的文件列表、读取和文本搜索
 - 默认关闭的白名单命令执行
+- 带 DAG 校验和 SQLite 持久化的任务 Planner
 - 环境、模型和工作区健康检查
 
 ## 快速开始
@@ -44,6 +45,14 @@ uv run ocu chat --session <SESSION_ID>
 uv run ocu memory remember "用户喜欢航空和人工智能"
 uv run ocu memory search "我的兴趣"
 uv run ocu memory list
+```
+
+创建和查看任务计划：
+
+```powershell
+uv run ocu plan create "检查仓库、运行测试并总结结果"
+uv run ocu plan list
+uv run ocu plan show <PLAN_ID>
 ```
 
 ## 安全模型
@@ -85,8 +94,9 @@ uv run ruff check src tests
 1. Agent Runtime 与模型适配器
 2. 会话、上下文摘要和长期记忆
 3. 安全工作区工具
-4. Planner 与任务执行状态
-5. RAG 文档索引
-6. MCP 与外部工具接入
-7. API 服务和 Web UI
-8. 多 Agent、反思与工作流
+4. Executor、任务执行状态与 Reflection
+5. Model Router
+6. RAG 文档索引
+7. MCP、插件与外部工具接入
+8. API 服务和 Web UI
+9. 多 Agent、Benchmark 与工作流
