@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -39,6 +39,9 @@ class Settings(BaseSettings):
         ".openclaw/sessions.db"
     )
     history_message_limit: int = 100
+
+    context_token_budget: int = 8192
+    context_response_reserve: int = 2048
 
     @property
     def openai_base_url(self) -> str:
@@ -102,6 +105,48 @@ class Settings(BaseSettings):
             )
 
         return value
+
+
+    @field_validator("context_token_budget")
+    @classmethod
+    def validate_context_token_budget(
+        cls,
+        value: int,
+    ) -> int:
+        if value < 256:
+            raise ValueError(
+                "context_token_budget must be at least 256."
+            )
+
+        return value
+
+    @field_validator("context_response_reserve")
+    @classmethod
+    def validate_context_response_reserve(
+        cls,
+        value: int,
+    ) -> int:
+        if value < 0:
+            raise ValueError(
+                "context_response_reserve cannot be negative."
+            )
+
+        return value
+
+    @model_validator(mode="after")
+    def validate_context_window(
+        self,
+    ) -> "Settings":
+        if (
+            self.context_response_reserve
+            >= self.context_token_budget
+        ):
+            raise ValueError(
+                "context_response_reserve must be smaller "
+                "than context_token_budget."
+            )
+
+        return self
 
 
 def load_settings() -> Settings:

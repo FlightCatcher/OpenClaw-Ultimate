@@ -9,6 +9,10 @@ from rich.table import Table
 
 from openclaw_ultimate.app import build_default_agent
 from openclaw_ultimate.config import Settings, load_settings
+from openclaw_ultimate.context import (
+    ContextSelection,
+    ContextWindowBuilder,
+)
 from openclaw_ultimate.core.messages import Message
 from openclaw_ultimate.core.runtime import AgentRuntime
 from openclaw_ultimate.doctor import run_doctor
@@ -157,9 +161,14 @@ async def _chat_async(
         f" · ID：[dim]{session.id}[/dim]"
     )
 
-    history = store.load_messages(
-        session.id,
-        limit=settings.history_message_limit,
+    context_selection = _load_context_history(
+        store=store,
+        session_id=session.id,
+        settings=settings,
+    )
+    history = context_selection.messages
+    _print_context_selection(
+        context_selection
     )
 
     if initial_message is not None:
@@ -239,9 +248,14 @@ async def _chat_async(
             continue
 
         try:
-            history = store.load_messages(
-                session.id,
-                limit=settings.history_message_limit,
+            context_selection = _load_context_history(
+                store=store,
+                session_id=session.id,
+                settings=settings,
+            )
+            history = context_selection.messages
+            _print_context_selection(
+                context_selection
             )
 
             result = await runtime.run(
@@ -276,6 +290,44 @@ async def _chat_async(
 
     console.print(
         f"[dim]会话已保存：{session.id}[/dim]"
+    )
+
+
+def _load_context_history(
+    *,
+    store: SQLiteSessionStore,
+    session_id: str,
+    settings: Settings,
+) -> ContextSelection:
+    """读取持久化历史并按 Token 预算裁剪。"""
+
+    raw_history = store.load_messages(
+        session_id,
+        limit=settings.history_message_limit,
+    )
+
+    builder = ContextWindowBuilder(
+        max_tokens=settings.context_token_budget,
+        response_reserve_tokens=(
+            settings.context_response_reserve
+        ),
+    )
+
+    return builder.build(raw_history)
+
+
+def _print_context_selection(
+    selection: ContextSelection,
+) -> None:
+    if selection.dropped_messages <= 0:
+        return
+
+    console.print(
+        "[dim]上下文预算已启用："
+        f"省略 {selection.dropped_messages} 条旧消息，"
+        f"预计使用 {selection.estimated_tokens}/"
+        f"{selection.max_input_tokens} 输入 Token。"
+        "[/dim]"
     )
 
 
