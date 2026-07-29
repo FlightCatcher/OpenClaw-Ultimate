@@ -26,9 +26,7 @@ class ConversationSummarizer:
         max_characters: int = 4000,
     ) -> None:
         if max_characters < 100:
-            raise ValueError(
-                "max_characters must be at least 100."
-            )
+            raise ValueError("max_characters must be at least 100.")
 
         self.model = model
         self.max_characters = max_characters
@@ -44,10 +42,7 @@ class ConversationSummarizer:
 
         payload = {
             "previous_summary": previous_summary or "",
-            "new_messages": [
-                self._serialize_message(message)
-                for message in messages
-            ],
+            "new_messages": [self._serialize_message(message) for message in messages],
         }
 
         response = await self.model.complete(
@@ -75,9 +70,7 @@ class ConversationSummarizer:
         content = (response.content or "").strip()
 
         if not content:
-            raise SummaryGenerationError(
-                "Model returned an empty conversation summary."
-            )
+            raise SummaryGenerationError("Model returned an empty conversation summary.")
 
         return content[: self.max_characters]
 
@@ -94,9 +87,7 @@ class ConversationSummarizer:
                 {
                     "id": tool_call.id,
                     "name": tool_call.name,
-                    "arguments": dict(
-                        tool_call.arguments
-                    ),
+                    "arguments": dict(tool_call.arguments),
                 }
                 for tool_call in message.tool_calls
             ],
@@ -121,63 +112,40 @@ class RollingSummaryContextManager:
         store: SQLiteSessionStore,
         session_id: str,
         system_prompt: str,
+        additional_context: str | None = None,
     ) -> ContextSelection:
-        raw_messages = store.load_messages(
-            session_id
-        )
-        summary_record = store.get_summary(
-            session_id
-        )
+        raw_messages = store.load_messages(session_id)
+        summary_record = store.get_summary(session_id)
 
         stored_system = next(
-            (
-                message
-                for message in raw_messages
-                if message.role == "system"
-            ),
+            (message for message in raw_messages if message.role == "system"),
             None,
         )
 
         base_system_prompt = (
-            stored_system.content
-            if stored_system
-            and stored_system.content
-            else system_prompt
+            stored_system.content if stored_system and stored_system.content else system_prompt
         )
 
         conversation_messages = tuple(
-            message
-            for message in raw_messages
-            if message.role != "system"
+            message for message in raw_messages if message.role != "system"
         )
 
-        covered_count = (
-            summary_record.covered_message_count
-            if summary_record is not None
-            else 0
-        )
+        covered_count = summary_record.covered_message_count if summary_record is not None else 0
         covered_count = min(
             covered_count,
             len(conversation_messages),
         )
 
-        summary_text = (
-            summary_record.summary
-            if summary_record is not None
-            else None
-        )
+        summary_text = summary_record.summary if summary_record is not None else None
 
-        remaining_messages = list(
-            conversation_messages[
-                covered_count:
-            ]
-        )
+        remaining_messages = list(conversation_messages[covered_count:])
 
         while True:
             system_message = Message.system(
                 self._compose_system_prompt(
                     base_system_prompt,
                     summary_text,
+                    additional_context,
                 )
             )
 
@@ -186,61 +154,45 @@ class RollingSummaryContextManager:
                 *remaining_messages,
             )
 
-            selection = self.builder.build(
-                candidate_messages
-            )
+            selection = self.builder.build(candidate_messages)
 
             if selection.dropped_messages == 0:
                 return selection
 
-            dropped_count = (
-                selection.dropped_messages
-            )
-            dropped_chunk = tuple(
-                remaining_messages[
-                    :dropped_count
-                ]
-            )
+            dropped_count = selection.dropped_messages
+            dropped_chunk = tuple(remaining_messages[:dropped_count])
 
             if not dropped_chunk:
                 return selection
 
-            summary_text = (
-                await self.summarizer.summarize(
-                    previous_summary=summary_text,
-                    messages=dropped_chunk,
-                )
+            summary_text = await self.summarizer.summarize(
+                previous_summary=summary_text,
+                messages=dropped_chunk,
             )
 
-            covered_count += len(
-                dropped_chunk
-            )
-            remaining_messages = (
-                remaining_messages[
-                    dropped_count:
-                ]
-            )
+            covered_count += len(dropped_chunk)
+            remaining_messages = remaining_messages[dropped_count:]
 
             store.upsert_summary(
                 session_id=session_id,
                 summary=summary_text,
-                covered_message_count=(
-                    covered_count
-                ),
+                covered_message_count=(covered_count),
             )
 
     @staticmethod
     def _compose_system_prompt(
         system_prompt: str,
         summary: str | None,
+        additional_context: str | None = None,
     ) -> str:
-        if not summary:
-            return system_prompt
+        sections = [system_prompt.rstrip()]
 
-        return (
-            system_prompt.rstrip()
-            + "\n\n"
-            + "以下是此前会话的压缩摘要。"
-            + "请把它作为可靠的历史上下文使用：\n"
-            + summary.strip()
-        )
+        if summary:
+            sections.append(
+                "以下是此前会话的压缩摘要。请把它作为可靠的历史上下文使用：\n" + summary.strip()
+            )
+
+        if additional_context:
+            sections.append(additional_context.strip())
+
+        return "\n\n".join(sections)

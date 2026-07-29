@@ -35,13 +35,18 @@ class Settings(BaseSettings):
     enable_shell_tool: bool = False
     workspace_root: Path = Field(default_factory=Path.cwd)
 
-    session_db_path: Path = Path(
-        ".openclaw/sessions.db"
-    )
+    session_db_path: Path = Path(".openclaw/sessions.db")
     history_message_limit: int = 100
 
     context_token_budget: int = 8192
     context_response_reserve: int = 2048
+
+    memory_enabled: bool = True
+    memory_db_path: Path = Path(".openclaw/memory.db")
+    embedding_model: str = "qwen3-embedding:0.6b"
+    memory_recall_limit: int = 5
+    memory_similarity_threshold: float = 0.35
+    memory_max_context_characters: int = 2000
 
     @property
     def openai_base_url(self) -> str:
@@ -61,9 +66,7 @@ class Settings(BaseSettings):
         value: float,
     ) -> float:
         if value <= 0:
-            raise ValueError(
-                "model_timeout must be greater than zero."
-            )
+            raise ValueError("model_timeout must be greater than zero.")
 
         return value
 
@@ -74,9 +77,7 @@ class Settings(BaseSettings):
         value: int,
     ) -> int:
         if value < 1:
-            raise ValueError(
-                "max_steps must be at least 1."
-            )
+            raise ValueError("max_steps must be at least 1.")
 
         return value
 
@@ -87,9 +88,7 @@ class Settings(BaseSettings):
         value: float,
     ) -> float:
         if not 0 <= value <= 2:
-            raise ValueError(
-                "temperature must be between 0 and 2."
-            )
+            raise ValueError("temperature must be between 0 and 2.")
 
         return value
 
@@ -100,12 +99,9 @@ class Settings(BaseSettings):
         value: int,
     ) -> int:
         if value < 1:
-            raise ValueError(
-                "history_message_limit must be at least 1."
-            )
+            raise ValueError("history_message_limit must be at least 1.")
 
         return value
-
 
     @field_validator("context_token_budget")
     @classmethod
@@ -114,9 +110,32 @@ class Settings(BaseSettings):
         value: int,
     ) -> int:
         if value < 256:
-            raise ValueError(
-                "context_token_budget must be at least 256."
-            )
+            raise ValueError("context_token_budget must be at least 256.")
+
+        return value
+
+    @field_validator(
+        "memory_recall_limit",
+        "memory_max_context_characters",
+    )
+    @classmethod
+    def validate_positive_memory_limits(
+        cls,
+        value: int,
+    ) -> int:
+        if value < 1:
+            raise ValueError("Memory limits must be at least 1.")
+
+        return value
+
+    @field_validator("memory_similarity_threshold")
+    @classmethod
+    def validate_memory_similarity_threshold(
+        cls,
+        value: float,
+    ) -> float:
+        if not -1 <= value <= 1:
+            raise ValueError("memory_similarity_threshold must be between -1 and 1.")
 
         return value
 
@@ -127,24 +146,16 @@ class Settings(BaseSettings):
         value: int,
     ) -> int:
         if value < 0:
-            raise ValueError(
-                "context_response_reserve cannot be negative."
-            )
+            raise ValueError("context_response_reserve cannot be negative.")
 
         return value
 
     @model_validator(mode="after")
     def validate_context_window(
         self,
-    ) -> "Settings":
-        if (
-            self.context_response_reserve
-            >= self.context_token_budget
-        ):
-            raise ValueError(
-                "context_response_reserve must be smaller "
-                "than context_token_budget."
-            )
+    ) -> Settings:
+        if self.context_response_reserve >= self.context_token_budget:
+            raise ValueError("context_response_reserve must be smaller than context_token_budget.")
 
         return self
 

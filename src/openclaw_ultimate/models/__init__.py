@@ -3,6 +3,10 @@ from openclaw_ultimate.models.base import (
     ModelProvider,
     ModelResponse,
 )
+from openclaw_ultimate.models.embeddings import (
+    EmbeddingClient,
+    OpenAICompatibleEmbeddingModel,
+)
 from openclaw_ultimate.models.openai_compatible import (
     ModelRequestError,
     ModelResponseError,
@@ -11,11 +15,13 @@ from openclaw_ultimate.models.openai_compatible import (
 )
 
 __all__ = [
+    "EmbeddingClient",
     "ModelClient",
     "ModelProvider",
     "ModelRequestError",
     "ModelResponse",
     "ModelResponseError",
+    "OpenAICompatibleEmbeddingModel",
     "OpenAICompatibleError",
     "OpenAICompatibleModel",
 ]

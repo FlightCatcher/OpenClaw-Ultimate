@@ -21,13 +21,17 @@ from openclaw_ultimate.core.runtime import (
 from openclaw_ultimate.doctor import run_doctor
 from openclaw_ultimate.memory import (
     ConversationSummarizer,
+    LongTermMemory,
     RollingSummaryContextManager,
+    SQLiteMemoryStore,
+)
+from openclaw_ultimate.models import (
+    OpenAICompatibleEmbeddingModel,
 )
 from openclaw_ultimate.sessions import (
-    SQLiteSessionStore,
     SessionNotFoundError,
+    SQLiteSessionStore,
 )
-
 
 app = typer.Typer(
     no_args_is_help=True,
@@ -39,9 +43,18 @@ session_app = typer.Typer(
     help="管理持久化聊天会话",
 )
 
+memory_app = typer.Typer(
+    no_args_is_help=True,
+    help="管理跨会话长期记忆",
+)
+
 app.add_typer(
     session_app,
     name="session",
+)
+app.add_typer(
+    memory_app,
+    name="memory",
 )
 
 console = Console()
@@ -51,9 +64,7 @@ console = Console()
 def doctor() -> None:
     """检查 OpenClaw-Ultimate 的运行环境。"""
 
-    raise typer.Exit(
-        code=0 if run_doctor(load_settings()) else 1
-    )
+    raise typer.Exit(code=0 if run_doctor(load_settings()) else 1)
 
 
 @app.command()
@@ -98,9 +109,7 @@ def chat(
         updates["ollama_base_url"] = base_url
 
     if updates:
-        settings = settings.model_copy(
-            update=updates
-        )
+        settings = settings.model_copy(update=updates)
 
     try:
         asyncio.run(
@@ -112,18 +121,12 @@ def chat(
             )
         )
     except SessionNotFoundError as exc:
-        console.print(
-            f"[red]会话不存在：{exc}[/red]"
-        )
+        console.print(f"[red]会话不存在：{exc}[/red]")
         raise typer.Exit(code=1) from exc
     except KeyboardInterrupt:
-        console.print(
-            "\n[yellow]已退出。[/yellow]"
-        )
+        console.print("\n[yellow]已退出。[/yellow]")
     except Exception as exc:
-        console.print(
-            f"[red]运行失败：{exc}[/red]"
-        )
+        console.print(f"[red]运行失败：{exc}[/red]")
         raise typer.Exit(code=1) from exc
 
 
@@ -136,56 +139,48 @@ async def _chat_async(
 ) -> None:
     agent = build_default_agent(settings)
     runtime = AgentRuntime()
-    store = SQLiteSessionStore(
-        settings.session_db_path
-    )
+    store = SQLiteSessionStore(settings.session_db_path)
+    long_term_memory = _build_long_term_memory(settings) if settings.memory_enabled else None
 
     created_new_session = session_id is None
 
     if session_id is None:
         initial_title = (
-            title.strip()
-            if title and title.strip()
-            else _title_from_message(
-                initial_message
-            )
+            title.strip() if title and title.strip() else _title_from_message(initial_message)
         )
 
-        session = store.create_session(
-            initial_title or "新会话"
-        )
+        session = store.create_session(initial_title or "新会话")
     else:
-        session = store.get_session(
-            session_id
+        session = store.get_session(session_id)
+
+    if long_term_memory is not None:
+        _register_memory_tool(
+            agent=agent,
+            memory=long_term_memory,
+            session_id=session.id,
         )
 
     console.print(
-        f"[green]{settings.app_name}[/green]"
-        f" · 模型：[cyan]{settings.ollama_model}[/cyan]"
+        f"[green]{settings.app_name}[/green] · 模型：[cyan]{settings.ollama_model}[/cyan]"
     )
-    console.print(
-        f"会话：[yellow]{session.title}[/yellow]"
-        f" · ID：[dim]{session.id}[/dim]"
-    )
-
-    context_selection = await _load_context_history(
-        agent=agent,
-        store=store,
-        session_id=session.id,
-        settings=settings,
-    )
-    history = context_selection.messages
-    _print_context_selection(
-        context_selection
-    )
+    console.print(f"会话：[yellow]{session.title}[/yellow] · ID：[dim]{session.id}[/dim]")
 
     if initial_message is not None:
         prompt = initial_message.strip()
 
         if not prompt:
-            raise typer.BadParameter(
-                "消息不能为空。"
-            )
+            raise typer.BadParameter("消息不能为空。")
+
+        context_selection = await _load_context_history(
+            agent=agent,
+            store=store,
+            session_id=session.id,
+            settings=settings,
+            query=prompt,
+            long_term_memory=long_term_memory,
+        )
+        history = context_selection.messages
+        _print_context_selection(context_selection)
 
         result = await runtime.run(
             agent,
@@ -200,35 +195,20 @@ async def _chat_async(
             runtime_messages=result.messages,
         )
 
-        console.print(
-            f"[magenta]AI>[/magenta] {result.output}"
-        )
-        console.print(
-            f"[dim]会话已保存：{session.id}[/dim]"
-        )
+        console.print(f"[magenta]AI>[/magenta] {result.output}")
+        console.print(f"[dim]会话已保存：{session.id}[/dim]")
         return
 
-    console.print(
-        "[dim]输入 /exit 或 /quit 退出。[/dim]"
-    )
-    console.print(
-        "[dim]输入 /session 查看当前会话 ID。[/dim]"
-    )
+    console.print("[dim]输入 /exit 或 /quit 退出。[/dim]")
+    console.print("[dim]输入 /session 查看当前会话 ID。[/dim]")
 
-    first_user_message = (
-        created_new_session
-        and session.title == "新会话"
-    )
+    first_user_message = created_new_session and session.title == "新会话"
 
     while True:
         try:
-            prompt = console.input(
-                "[blue]你> [/blue]"
-            ).strip()
+            prompt = console.input("[blue]你> [/blue]").strip()
         except (KeyboardInterrupt, EOFError):
-            console.print(
-                "\n[yellow]已退出。[/yellow]"
-            )
+            console.print("\n[yellow]已退出。[/yellow]")
             break
 
         if prompt.lower() in {
@@ -238,18 +218,10 @@ async def _chat_async(
             break
 
         if prompt.lower() == "/session":
-            current = store.get_session(
-                session.id
-            )
-            console.print(
-                f"会话：[yellow]{current.title}[/yellow]"
-            )
-            console.print(
-                f"ID：[dim]{current.id}[/dim]"
-            )
-            console.print(
-                f"消息数：{current.message_count}"
-            )
+            current = store.get_session(session.id)
+            console.print(f"会话：[yellow]{current.title}[/yellow]")
+            console.print(f"ID：[dim]{current.id}[/dim]")
+            console.print(f"消息数：{current.message_count}")
             continue
 
         if not prompt:
@@ -261,11 +233,11 @@ async def _chat_async(
                 store=store,
                 session_id=session.id,
                 settings=settings,
+                query=prompt,
+                long_term_memory=long_term_memory,
             )
             history = context_selection.messages
-            _print_context_selection(
-                context_selection
-            )
+            _print_context_selection(context_selection)
 
             result = await runtime.run(
                 agent,
@@ -283,23 +255,16 @@ async def _chat_async(
             if first_user_message:
                 session = store.rename_session(
                     session.id,
-                    _title_from_message(prompt)
-                    or "新会话",
+                    _title_from_message(prompt) or "新会话",
                 )
                 first_user_message = False
 
-            console.print(
-                f"[magenta]AI>[/magenta] {result.output}"
-            )
+            console.print(f"[magenta]AI>[/magenta] {result.output}")
 
         except Exception as exc:
-            console.print(
-                f"[red]错误：{exc}[/red]"
-            )
+            console.print(f"[red]错误：{exc}[/red]")
 
-    console.print(
-        f"[dim]会话已保存：{session.id}[/dim]"
-    )
+    console.print(f"[dim]会话已保存：{session.id}[/dim]")
 
 
 async def _load_context_history(
@@ -308,27 +273,112 @@ async def _load_context_history(
     store: SQLiteSessionStore,
     session_id: str,
     settings: Settings,
+    query: str,
+    long_term_memory: LongTermMemory | None,
 ) -> ContextSelection:
     """读取历史、生成滚动摘要并构造模型上下文。"""
 
     builder = ContextWindowBuilder(
         max_tokens=settings.context_token_budget,
-        response_reserve_tokens=(
-            settings.context_response_reserve
-        ),
+        response_reserve_tokens=(settings.context_response_reserve),
     )
 
     manager = RollingSummaryContextManager(
         builder=builder,
-        summarizer=ConversationSummarizer(
-            agent.model
-        ),
+        summarizer=ConversationSummarizer(agent.model),
+    )
+
+    memory_context = await _recall_memory_context(
+        memory=long_term_memory,
+        query=query,
+        settings=settings,
     )
 
     return await manager.build(
         store=store,
         session_id=session_id,
         system_prompt=agent.system_prompt,
+        additional_context=memory_context,
+    )
+
+
+def _build_long_term_memory(
+    settings: Settings,
+) -> LongTermMemory:
+    embedding_model = OpenAICompatibleEmbeddingModel(
+        model=settings.embedding_model,
+        base_url=settings.openai_base_url,
+        api_key=settings.ollama_api_key,
+        timeout=settings.model_timeout,
+    )
+
+    return LongTermMemory(
+        store=SQLiteMemoryStore(settings.memory_db_path),
+        embedding_model=embedding_model,
+    )
+
+
+def _register_memory_tool(
+    *,
+    agent: Agent,
+    memory: LongTermMemory,
+    session_id: str,
+) -> None:
+    async def remember_memory(
+        content: str,
+    ) -> dict[str, str]:
+        record = await memory.remember(
+            content,
+            source_session_id=session_id,
+        )
+
+        return {
+            "id": record.id,
+            "content": record.content,
+        }
+
+    agent.system_prompt += (
+        "\n当用户明确要求你长期记住身份、偏好、目标或重要事实时，"
+        "必须调用 remember_memory 工具保存；不要保存密码、密钥等敏感信息。"
+    )
+    agent.tools.add(
+        name="remember_memory",
+        description=(
+            "把用户明确要求长期记住的重要事实保存到跨会话记忆。不要保存密码、令牌、密钥等敏感数据。"
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string",
+                    "description": ("简洁、独立、可在未来理解的事实陈述"),
+                },
+            },
+            "required": ["content"],
+            "additionalProperties": False,
+        },
+        handler=remember_memory,
+    )
+
+
+async def _recall_memory_context(
+    *,
+    memory: LongTermMemory | None,
+    query: str,
+    settings: Settings,
+) -> str | None:
+    if memory is None:
+        return None
+
+    results = await memory.search(
+        query,
+        limit=settings.memory_recall_limit,
+        minimum_score=(settings.memory_similarity_threshold),
+    )
+
+    return memory.format_context(
+        results,
+        max_characters=(settings.memory_max_context_characters),
     )
 
 
@@ -357,9 +407,7 @@ def _append_runtime_delta(
     """只保存本轮新增的消息，避免重复写入历史。"""
 
     history_count = len(previous_history)
-    new_messages = tuple(
-        runtime_messages[history_count:]
-    )
+    new_messages = tuple(runtime_messages[history_count:])
 
     if not new_messages:
         return
@@ -376,9 +424,7 @@ def _title_from_message(
     if message is None:
         return None
 
-    compact = " ".join(
-        message.strip().split()
-    )
+    compact = " ".join(message.strip().split())
 
     if not compact:
         return None
@@ -392,9 +438,7 @@ def _title_from_message(
 def _get_store() -> SQLiteSessionStore:
     settings = load_settings()
 
-    return SQLiteSessionStore(
-        settings.session_db_path
-    )
+    return SQLiteSessionStore(settings.session_db_path)
 
 
 @session_app.command("new")
@@ -409,22 +453,12 @@ def session_new(
     store = _get_store()
     session = store.create_session(title)
 
-    console.print(
-        "[green]会话创建成功[/green]"
-    )
-    console.print(
-        f"标题：[yellow]{session.title}[/yellow]"
-    )
-    console.print(
-        f"ID：[cyan]{session.id}[/cyan]"
-    )
+    console.print("[green]会话创建成功[/green]")
+    console.print(f"标题：[yellow]{session.title}[/yellow]")
+    console.print(f"ID：[cyan]{session.id}[/cyan]")
     console.print()
-    console.print(
-        "使用以下命令恢复："
-    )
-    console.print(
-        f"[bold]uv run ocu chat --session {session.id}[/bold]"
-    )
+    console.print("使用以下命令恢复：")
+    console.print(f"[bold]uv run ocu chat --session {session.id}[/bold]")
 
 
 @session_app.command("list")
@@ -441,19 +475,13 @@ def session_list(
     """列出最近的会话。"""
 
     store = _get_store()
-    sessions = store.list_sessions(
-        limit=limit
-    )
+    sessions = store.list_sessions(limit=limit)
 
     if not sessions:
-        console.print(
-            "[yellow]还没有保存的会话。[/yellow]"
-        )
+        console.print("[yellow]还没有保存的会话。[/yellow]")
         return
 
-    table = Table(
-        title="OpenClaw-Ultimate 会话"
-    )
+    table = Table(title="OpenClaw-Ultimate 会话")
     table.add_column(
         "标题",
         overflow="fold",
@@ -493,39 +521,21 @@ def session_show(
     store = _get_store()
 
     try:
-        session = store.get_session(
-            session_id
-        )
-        messages = store.load_messages(
-            session_id
-        )
+        session = store.get_session(session_id)
+        messages = store.load_messages(session_id)
     except SessionNotFoundError as exc:
-        console.print(
-            f"[red]会话不存在：{session_id}[/red]"
-        )
+        console.print(f"[red]会话不存在：{session_id}[/red]")
         raise typer.Exit(code=1) from exc
 
-    console.print(
-        f"[bold]{session.title}[/bold]"
-    )
-    console.print(
-        f"ID：[cyan]{session.id}[/cyan]"
-    )
-    console.print(
-        f"创建时间：{session.created_at}"
-    )
-    console.print(
-        f"更新时间：{session.updated_at}"
-    )
-    console.print(
-        f"消息数量：{session.message_count}"
-    )
+    console.print(f"[bold]{session.title}[/bold]")
+    console.print(f"ID：[cyan]{session.id}[/cyan]")
+    console.print(f"创建时间：{session.created_at}")
+    console.print(f"更新时间：{session.updated_at}")
+    console.print(f"消息数量：{session.message_count}")
     console.print()
 
     if not messages:
-        console.print(
-            "[dim]该会话还没有消息。[/dim]"
-        )
+        console.print("[dim]该会话还没有消息。[/dim]")
         return
 
     role_names = {
@@ -546,37 +556,20 @@ def session_show(
         messages,
         start=1,
     ):
-        role_name = role_names[
-            message.role
-        ]
-        style = role_styles[
-            message.role
-        ]
+        role_name = role_names[message.role]
+        style = role_styles[message.role]
 
-        console.print(
-            f"[{style}][{index}] "
-            f"{role_name}[/{style}]"
-        )
+        console.print(f"[{style}][{index}] {role_name}[/{style}]")
 
         if message.content:
-            console.print(
-                message.content
-            )
+            console.print(message.content)
 
         for tool_call in message.tool_calls:
-            console.print(
-                f"[yellow]调用工具："
-                f"{tool_call.name}[/yellow]"
-            )
-            console.print(
-                f"参数：{dict(tool_call.arguments)}"
-            )
+            console.print(f"[yellow]调用工具：{tool_call.name}[/yellow]")
+            console.print(f"参数：{dict(tool_call.arguments)}")
 
         if message.tool_call_id:
-            console.print(
-                f"[dim]调用 ID："
-                f"{message.tool_call_id}[/dim]"
-            )
+            console.print(f"[dim]调用 ID：{message.tool_call_id}[/dim]")
 
         console.print()
 
@@ -602,15 +595,10 @@ def session_rename(
             title,
         )
     except SessionNotFoundError as exc:
-        console.print(
-            f"[red]会话不存在：{session_id}[/red]"
-        )
+        console.print(f"[red]会话不存在：{session_id}[/red]")
         raise typer.Exit(code=1) from exc
 
-    console.print(
-        f"[green]已重命名为："
-        f"{session.title}[/green]"
-    )
+    console.print(f"[green]已重命名为：{session.title}[/green]")
 
 
 @session_app.command("delete")
@@ -631,34 +619,173 @@ def session_delete(
     store = _get_store()
 
     try:
-        session = store.get_session(
-            session_id
-        )
+        session = store.get_session(session_id)
     except SessionNotFoundError as exc:
-        console.print(
-            f"[red]会话不存在：{session_id}[/red]"
-        )
+        console.print(f"[red]会话不存在：{session_id}[/red]")
         raise typer.Exit(code=1) from exc
 
     if not yes:
-        confirmed = typer.confirm(
-            f"确定删除会话“{session.title}”吗？"
-        )
+        confirmed = typer.confirm(f"确定删除会话“{session.title}”吗？")
 
         if not confirmed:
-            console.print(
-                "[yellow]已取消。[/yellow]"
-            )
+            console.print("[yellow]已取消。[/yellow]")
             raise typer.Abort()
 
-    store.delete_session(
-        session_id
-    )
+    store.delete_session(session_id)
 
-    console.print(
-        f"[green]会话已删除："
-        f"{session_id}[/green]"
+    console.print(f"[green]会话已删除：{session_id}[/green]")
+
+
+@memory_app.command("remember")
+def memory_remember(
+    content: str = typer.Argument(
+        ...,
+        help="需要长期记住的事实。",
+    ),
+) -> None:
+    """保存一条跨会话长期记忆。"""
+
+    async def run() -> None:
+        memory = _build_long_term_memory(load_settings())
+        record = await memory.remember(content)
+
+        console.print("[green]长期记忆已保存[/green]")
+        console.print(f"ID：[cyan]{record.id}[/cyan]")
+        console.print(record.content)
+
+    asyncio.run(run())
+
+
+@memory_app.command("search")
+def memory_search(
+    query: str = typer.Argument(
+        ...,
+        help="用于检索长期记忆的文本。",
+    ),
+    limit: int = typer.Option(
+        5,
+        "--limit",
+        "-n",
+        min=1,
+        max=50,
+        help="最多返回的记忆数量。",
+    ),
+) -> None:
+    """按语义相似度搜索长期记忆。"""
+
+    async def run() -> None:
+        settings = load_settings()
+        memory = _build_long_term_memory(settings)
+        results = await memory.search(
+            query,
+            limit=limit,
+            minimum_score=(settings.memory_similarity_threshold),
+        )
+
+        if not results:
+            console.print("[yellow]没有找到相关长期记忆。[/yellow]")
+            return
+
+        table = Table(title="长期记忆搜索结果")
+        table.add_column(
+            "相关度",
+            justify="right",
+        )
+        table.add_column(
+            "记忆 ID",
+            style="cyan",
+        )
+        table.add_column(
+            "内容",
+            overflow="fold",
+        )
+
+        for result in results:
+            table.add_row(
+                f"{result.score:.3f}",
+                result.memory.id,
+                result.memory.content,
+            )
+
+        console.print(table)
+
+    asyncio.run(run())
+
+
+@memory_app.command("list")
+def memory_list(
+    limit: int = typer.Option(
+        20,
+        "--limit",
+        "-n",
+        min=1,
+        max=200,
+        help="最多显示的长期记忆数量。",
+    ),
+) -> None:
+    """列出最近保存的长期记忆。"""
+
+    settings = load_settings()
+    store = SQLiteMemoryStore(settings.memory_db_path)
+    memories = store.list(limit=limit)
+
+    if not memories:
+        console.print("[yellow]还没有长期记忆。[/yellow]")
+        return
+
+    table = Table(title="长期记忆")
+    table.add_column(
+        "记忆 ID",
+        style="cyan",
     )
+    table.add_column(
+        "内容",
+        overflow="fold",
+    )
+    table.add_column("来源会话")
+    table.add_column("更新时间")
+
+    for memory in memories:
+        table.add_row(
+            memory.id,
+            memory.content,
+            memory.source_session_id or "-",
+            memory.updated_at,
+        )
+
+    console.print(table)
+
+
+@memory_app.command("delete")
+def memory_delete(
+    memory_id: str = typer.Argument(
+        ...,
+        help="需要删除的长期记忆 ID。",
+    ),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="跳过删除确认。",
+    ),
+) -> None:
+    """永久删除一条长期记忆。"""
+
+    settings = load_settings()
+    store = SQLiteMemoryStore(settings.memory_db_path)
+
+    try:
+        memory = store.get(memory_id)
+    except KeyError as exc:
+        console.print(f"[red]长期记忆不存在：{memory_id}[/red]")
+        raise typer.Exit(code=1) from exc
+
+    if not yes and not typer.confirm(f"确定删除“{memory.content}”吗？"):
+        console.print("[yellow]已取消。[/yellow]")
+        raise typer.Abort()
+
+    store.delete(memory_id)
+    console.print(f"[green]长期记忆已删除：{memory_id}[/green]")
 
 
 if __name__ == "__main__":
