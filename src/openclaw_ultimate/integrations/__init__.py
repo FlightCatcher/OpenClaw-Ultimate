@@ -19,6 +19,12 @@ from openclaw_ultimate.integrations.mcp import (
     McpToolResult,
     StdioMcpClient,
 )
+from openclaw_ultimate.integrations.media import (
+    ImageAnalysis,
+    OllamaVisionClient,
+    Transcript,
+    WhisperCliClient,
+)
 from openclaw_ultimate.integrations.openclaw import (
     OpenClawAgentResult,
     OpenClawBrowserPage,
@@ -38,6 +44,7 @@ __all__ = [
     "ComfyUIOutput",
     "ComfyUIUnavailableError",
     "ComfyUIWorkflowError",
+    "ImageAnalysis",
     "McpConfigurationError",
     "McpError",
     "McpProtocolError",
@@ -46,6 +53,7 @@ __all__ = [
     "McpTimeoutError",
     "McpTool",
     "McpToolResult",
+    "OllamaVisionClient",
     "OpenClawAgentResult",
     "OpenClawBrowserPage",
     "OpenClawCliClient",
@@ -56,4 +64,6 @@ __all__ = [
     "OpenClawIntegrationError",
     "OpenClawUnavailableError",
     "StdioMcpClient",
+    "Transcript",
+    "WhisperCliClient",
 ]

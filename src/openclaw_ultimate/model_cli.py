@@ -73,7 +73,7 @@ def model_routes() -> None:
             )
 
         routes = Table(
-            title=(f"OCU 模型路由 (驻留预算 {settings.model_resident_budget_gb:.1f} GiB)")
+            title=(f"VELA 模型路由 (驻留预算 {settings.model_resident_budget_gb:.1f} GiB)")
         )
         routes.add_column("任务")
         routes.add_column("模型")

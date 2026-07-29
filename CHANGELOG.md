@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.0 - 2026-07-29
+
+- Rebranded the local agent as VELA while preserving OCU compatibility.
+- Added the local Command Deck UI and expanded v1 API.
+- Added persisted confirmations, audit events, database migrations and plan controls.
+- Added governed memory metadata, expiration and archival.
+- Added PDF, DOCX, HTML, CSV, JSON and source-code knowledge extraction.
+- Enabled and verified the bundled read-only `vela-local` MCP server.
+- Added Windows desktop installation, backup, integrity and release tooling.
+- Added Windows/Linux CI and tagged release packaging.
+
 ## 0.1.0 - 2026-07-29
 
 ### Added

@@ -1,8 +1,8 @@
 {
   "id": "openclaw-ultimate",
-  "name": "OpenClaw Ultimate",
-  "description": "Adds OCU planning, DAG execution and reflection to OpenClaw.",
-  "version": "0.1.0",
+  "name": "VELA for OpenClaw",
+  "description": "Adds VELA planning, execution, reflection and local knowledge to OpenClaw.",
+  "version": "1.0.0",
   "activation": {
     "onStartup": true
   },
@@ -34,7 +34,7 @@
   },
   "uiHints": {
     "projectRoot": {
-      "label": "OCU project root",
+      "label": "VELA project root",
       "placeholder": "E:\\Projects\\OpenClaw-Ultimate"
     },
     "timeoutMs": {

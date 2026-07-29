@@ -9,7 +9,7 @@ FILES = {
     "pyproject.toml": """
 [project]
 name = "openclaw-ultimate"
-version = "0.1.0"
+version = "1.0.0"
 description = "Local-first modular AI agent platform"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
@@ -47,7 +47,7 @@ target-version = "py312"
 """,
     ".python-version": "3.12\n",
     ".env.example": """
-OCU_APP_NAME=OpenClaw Ultimate
+OCU_APP_NAME=VELA
 OCU_LOG_LEVEL=INFO
 OCU_OLLAMA_BASE_URL=http://127.0.0.1:11434
 OCU_OLLAMA_MODEL=qwen3:8b
@@ -55,7 +55,7 @@ OCU_ENABLE_SHELL_TOOL=false
 OCU_WORKSPACE_ROOT=.
 """,
     "README.md": """
-# OpenClaw Ultimate
+# VELA
 
 本地优先、模块化、可扩展的 AI Agent 平台。
 
@@ -74,7 +74,7 @@ uv run ocu chat
 
 Shell 工具默认关闭。
 """,
-    "src/openclaw_ultimate/__init__.py": '__version__ = "0.1.0"\n',
+    "src/openclaw_ultimate/__init__.py": '__version__ = "1.0.0"\n',
     "src/openclaw_ultimate/config.py": """
 from pathlib import Path
 from pydantic import Field
@@ -82,7 +82,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="OCU_", extra="ignore")
-    app_name: str = "OpenClaw Ultimate"
+    app_name: str = "VELA"
     log_level: str = "INFO"
     ollama_base_url: str = "http://127.0.0.1:11434"
     ollama_model: str = "qwen3:8b"
@@ -123,7 +123,7 @@ from dataclasses import dataclass
 from openclaw_ultimate.models.base import ModelProvider
 
 SYSTEM_PROMPT = (
-    "You are OpenClaw Ultimate, a local-first assistant. "
+    "You are VELA, a verified local-first assistant. "
     "Be accurate and never claim a tool succeeded unless it actually ran."
 )
 

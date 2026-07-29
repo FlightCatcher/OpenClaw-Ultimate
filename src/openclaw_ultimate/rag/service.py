@@ -6,6 +6,10 @@ from pathlib import Path
 
 from openclaw_ultimate.models.embeddings import EmbeddingClient
 from openclaw_ultimate.rag.chunking import MarkdownChunker
+from openclaw_ultimate.rag.extractors import (
+    DocumentExtractionError,
+    DocumentExtractor,
+)
 from openclaw_ultimate.rag.models import (
     KnowledgeChunk,
     KnowledgeIndexReport,
@@ -17,15 +21,6 @@ from openclaw_ultimate.rag.store import SQLiteKnowledgeStore
 class KnowledgeBase:
     """增量索引本地文档，并执行带引用的混合检索。"""
 
-    supported_suffixes = frozenset(
-        {
-            ".md",
-            ".markdown",
-            ".txt",
-            ".rst",
-        }
-    )
-
     def __init__(
         self,
         *,
@@ -35,6 +30,7 @@ class KnowledgeBase:
         chunker: MarkdownChunker | None = None,
         max_file_bytes: int = 1_000_000,
         embedding_batch_size: int = 16,
+        extractor: DocumentExtractor | None = None,
     ) -> None:
         if max_file_bytes < 1:
             raise ValueError("max_file_bytes must be positive.")
@@ -48,6 +44,7 @@ class KnowledgeBase:
         self.chunker = chunker or MarkdownChunker()
         self.max_file_bytes = max_file_bytes
         self.embedding_batch_size = embedding_batch_size
+        self.extractor = extractor or DocumentExtractor()
 
     async def index(
         self,
@@ -60,7 +57,8 @@ class KnowledgeBase:
                 (
                     path
                     for path in self.root.rglob("*")
-                    if path.is_file() and path.suffix.casefold() in self.supported_suffixes
+                    if path.is_file()
+                    and path.suffix.casefold() in self.extractor.supported_suffixes
                 ),
                 key=lambda path: str(path).casefold(),
             )
@@ -84,8 +82,8 @@ class KnowledgeBase:
 
             try:
                 raw = path.read_bytes()
-                text = raw.decode("utf-8-sig")
-            except (OSError, UnicodeDecodeError) as exc:
+                text = self.extractor.extract(path, raw)
+            except (OSError, DocumentExtractionError) as exc:
                 skipped_files += 1
                 skipped_reasons.append(f"{relative}: {type(exc).__name__}")
                 continue

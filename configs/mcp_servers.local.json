@@ -1,0 +1,17 @@
+{
+  "servers": [
+    {
+      "name": "vela-local",
+      "command": [
+        "uv",
+        "--directory",
+        "{project_root}",
+        "run",
+        "python",
+        "scripts/vela_mcp_server.py"
+      ],
+      "cwd": "{project_root}",
+      "enabled": true
+    }
+  ]
+}

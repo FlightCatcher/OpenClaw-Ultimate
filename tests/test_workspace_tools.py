@@ -6,6 +6,10 @@ from pathlib import Path
 
 import pytest
 
+from openclaw_ultimate.governance import (
+    ConfirmationRequired,
+    SQLiteGovernanceStore,
+)
 from openclaw_ultimate.tools import (
     SafeCommandRunner,
     WorkspaceAccessError,
@@ -99,10 +103,21 @@ def test_safe_command_runner_executes_allowed_command(
 ) -> None:
     async def run_test() -> None:
         workspace = WorkspaceTools(tmp_path)
+        governance = SQLiteGovernanceStore(tmp_path / "governance.db")
         runner = SafeCommandRunner(
             workspace,
             allowed_commands=("python",),
             timeout=10,
+            governance_store=governance,
+        )
+        with pytest.raises(ConfirmationRequired) as required:
+            await runner.run_command(
+                sys.executable,
+                ("-c", "print('workspace-ok')"),
+            )
+        governance.resolve_confirmation(
+            required.value.request.confirmation_id,
+            approve=True,
         )
         result = await runner.run_command(
             sys.executable,

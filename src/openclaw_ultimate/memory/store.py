@@ -21,6 +21,12 @@ class MemoryRecord:
     source_session_id: str | None
     created_at: str
     updated_at: str
+    memory_type: str = "fact"
+    importance: float = 0.5
+    sensitivity: str = "normal"
+    expires_at: str | None = None
+    archived: bool = False
+    last_accessed_at: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,6 +90,21 @@ class SQLiteMemoryStore:
                 ON memories(updated_at DESC);
                 """
             )
+            columns = {
+                str(row["name"])
+                for row in connection.execute("PRAGMA table_info(memories)").fetchall()
+            }
+            migrations = {
+                "memory_type": "TEXT NOT NULL DEFAULT 'fact'",
+                "importance": "REAL NOT NULL DEFAULT 0.5",
+                "sensitivity": "TEXT NOT NULL DEFAULT 'normal'",
+                "expires_at": "TEXT",
+                "archived": "INTEGER NOT NULL DEFAULT 0",
+                "last_accessed_at": "TEXT",
+            }
+            for column, definition in migrations.items():
+                if column not in columns:
+                    connection.execute(f"ALTER TABLE memories ADD COLUMN {column} {definition}")
 
     def add(
         self,
@@ -91,12 +112,20 @@ class SQLiteMemoryStore:
         content: str,
         embedding: Sequence[float],
         source_session_id: str | None = None,
+        memory_type: str = "fact",
+        importance: float = 0.5,
+        sensitivity: str = "normal",
+        expires_at: str | None = None,
     ) -> MemoryRecord:
         clean_content = content.strip()
         vector = self._validate_embedding(embedding)
 
         if not clean_content:
             raise ValueError("Memory content cannot be empty.")
+        clean_type = self._validate_label(memory_type, "memory_type")
+        clean_sensitivity = self._validate_label(sensitivity, "sensitivity")
+        if not 0 <= importance <= 1:
+            raise ValueError("importance must be between 0 and 1.")
 
         memory_id = uuid4().hex
         now = self._utc_now()
@@ -110,9 +139,15 @@ class SQLiteMemoryStore:
                     embedding_json,
                     source_session_id,
                     created_at,
-                    updated_at
+                    updated_at,
+                    memory_type,
+                    importance,
+                    sensitivity,
+                    expires_at,
+                    archived,
+                    last_accessed_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     memory_id,
@@ -121,6 +156,12 @@ class SQLiteMemoryStore:
                     source_session_id,
                     now,
                     now,
+                    clean_type,
+                    importance,
+                    clean_sensitivity,
+                    expires_at,
+                    0,
+                    None,
                 ),
             )
 
@@ -131,6 +172,10 @@ class SQLiteMemoryStore:
             source_session_id=source_session_id,
             created_at=now,
             updated_at=now,
+            memory_type=clean_type,
+            importance=importance,
+            sensitivity=clean_sensitivity,
+            expires_at=expires_at,
         )
 
     def get(
@@ -156,19 +201,31 @@ class SQLiteMemoryStore:
         self,
         *,
         limit: int = 50,
+        include_archived: bool = False,
+        include_expired: bool = False,
     ) -> tuple[MemoryRecord, ...]:
         if limit < 1:
             raise ValueError("limit must be at least 1.")
 
+        conditions: list[str] = []
+        parameters: list[object] = []
+        if not include_archived:
+            conditions.append("archived = 0")
+        if not include_expired:
+            conditions.append("(expires_at IS NULL OR expires_at > ?)")
+            parameters.append(self._utc_now())
+        where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        parameters.append(limit)
         with self._connection() as connection:
             rows = connection.execute(
-                """
+                f"""
                 SELECT *
                 FROM memories
-                ORDER BY updated_at DESC, id DESC
+                {where}
+                ORDER BY importance DESC, updated_at DESC, id DESC
                 LIMIT ?
                 """,
-                (limit,),
+                parameters,
             ).fetchall()
 
         return tuple(self._row_to_memory(row) for row in rows)
@@ -188,6 +245,72 @@ class SQLiteMemoryStore:
 
         if cursor.rowcount == 0:
             raise KeyError(f"Memory not found: {memory_id}")
+
+    def archive(
+        self,
+        memory_id: str,
+        *,
+        archived: bool = True,
+    ) -> MemoryRecord:
+        with self._connection() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE memories
+                SET archived = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (int(archived), self._utc_now(), memory_id),
+            )
+        if cursor.rowcount == 0:
+            raise KeyError(f"Memory not found: {memory_id}")
+        return self.get(memory_id)
+
+    def update_policy(
+        self,
+        memory_id: str,
+        *,
+        importance: float | None = None,
+        sensitivity: str | None = None,
+        expires_at: str | None = None,
+    ) -> MemoryRecord:
+        memory = self.get(memory_id)
+        selected_importance = memory.importance if importance is None else importance
+        if not 0 <= selected_importance <= 1:
+            raise ValueError("importance must be between 0 and 1.")
+        selected_sensitivity = (
+            memory.sensitivity
+            if sensitivity is None
+            else self._validate_label(sensitivity, "sensitivity")
+        )
+        with self._connection() as connection:
+            connection.execute(
+                """
+                UPDATE memories
+                SET importance = ?, sensitivity = ?, expires_at = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    selected_importance,
+                    selected_sensitivity,
+                    expires_at,
+                    self._utc_now(),
+                    memory_id,
+                ),
+            )
+        return self.get(memory_id)
+
+    def prune_expired(self) -> int:
+        now = self._utc_now()
+        with self._connection() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE memories
+                SET archived = 1, updated_at = ?
+                WHERE archived = 0 AND expires_at IS NOT NULL AND expires_at <= ?
+                """,
+                (now, now),
+            )
+        return int(cursor.rowcount)
 
     def search(
         self,
@@ -231,7 +354,24 @@ class SQLiteMemoryStore:
             reverse=True,
         )
 
-        return tuple(scored[:limit])
+        selected = tuple(scored[:limit])
+        self.touch(tuple(result.memory.id for result in selected))
+        return selected
+
+    def touch(self, memory_ids: Sequence[str]) -> None:
+        ids = tuple(dict.fromkeys(memory_ids))
+        if not ids:
+            return
+        placeholders = ",".join("?" for _ in ids)
+        with self._connection() as connection:
+            connection.execute(
+                f"""
+                UPDATE memories
+                SET last_accessed_at = ?
+                WHERE id IN ({placeholders})
+                """,
+                (self._utc_now(), *ids),
+            )
 
     @staticmethod
     def _validate_embedding(
@@ -291,7 +431,22 @@ class SQLiteMemoryStore:
             ),
             created_at=str(row["created_at"]),
             updated_at=str(row["updated_at"]),
+            memory_type=str(row["memory_type"]),
+            importance=float(row["importance"]),
+            sensitivity=str(row["sensitivity"]),
+            expires_at=(str(row["expires_at"]) if row["expires_at"] is not None else None),
+            archived=bool(row["archived"]),
+            last_accessed_at=(
+                str(row["last_accessed_at"]) if row["last_accessed_at"] is not None else None
+            ),
         )
+
+    @staticmethod
+    def _validate_label(value: str, field: str) -> str:
+        cleaned = value.strip().casefold()
+        if not cleaned or len(cleaned) > 40:
+            raise ValueError(f"{field} must contain 1 to 40 characters.")
+        return cleaned
 
     @staticmethod
     def _utc_now() -> str:

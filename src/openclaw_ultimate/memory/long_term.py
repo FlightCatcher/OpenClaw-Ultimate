@@ -27,6 +27,10 @@ class LongTermMemory:
         content: str,
         *,
         source_session_id: str | None = None,
+        memory_type: str = "fact",
+        importance: float = 0.5,
+        sensitivity: str = "normal",
+        expires_at: str | None = None,
     ) -> MemoryRecord:
         clean_content = content.strip()
 
@@ -42,6 +46,10 @@ class LongTermMemory:
             content=clean_content,
             embedding=vectors[0],
             source_session_id=source_session_id,
+            memory_type=memory_type,
+            importance=importance,
+            sensitivity=sensitivity,
+            expires_at=expires_at,
         )
 
     async def search(

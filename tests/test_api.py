@@ -15,6 +15,7 @@ from openclaw_ultimate.diagnostics import (
     ComponentState,
     DiagnosticReport,
 )
+from openclaw_ultimate.memory import SQLiteMemoryStore
 
 
 def test_api_health_returns_structured_diagnostics(
@@ -138,3 +139,58 @@ def test_local_api_rejects_remote_bind(
         match="Remote API binding is disabled",
     ):
         LocalApiServer(settings)
+
+
+def test_api_serves_vela_ui_and_meta(tmp_path) -> None:
+    application = ApiApplication(
+        Settings(
+            _env_file=None,
+            workspace_root=tmp_path,
+            governance_db_path=tmp_path / "governance.db",
+            openclaw_enabled=False,
+            comfyui_enabled=False,
+            knowledge_enabled=False,
+            mcp_enabled=False,
+        )
+    )
+
+    page = application.dispatch("GET", "/")
+    meta = application.dispatch("GET", "/v1/meta")
+
+    assert page.status == 200
+    assert isinstance(page.payload, bytes)
+    assert b"VELA" in page.payload
+    assert meta.payload["data"]["name"] == "VELA"
+    assert meta.payload["data"]["version"] == "1.0.0"
+
+
+def test_memory_delete_requires_and_consumes_confirmation(tmp_path) -> None:
+    memory_path = tmp_path / "memory.db"
+    memory_store = SQLiteMemoryStore(memory_path)
+    memory = memory_store.add(content="remember", embedding=(1.0, 0.0))
+    application = ApiApplication(
+        Settings(
+            _env_file=None,
+            workspace_root=tmp_path,
+            memory_db_path=memory_path,
+            governance_db_path=tmp_path / "governance.db",
+            openclaw_enabled=False,
+            comfyui_enabled=False,
+            knowledge_enabled=False,
+            mcp_enabled=False,
+        )
+    )
+
+    blocked = application.dispatch("DELETE", f"/v1/memories/{memory.id}")
+    confirmation_id = blocked.payload["error"]["confirmation"]["confirmation_id"]
+    approved = application.dispatch(
+        "POST",
+        f"/v1/confirmations/{confirmation_id}/approve",
+    )
+    deleted = application.dispatch("DELETE", f"/v1/memories/{memory.id}")
+
+    assert blocked.status == 409
+    assert approved.status == 200
+    assert deleted.status == 200
+    with pytest.raises(KeyError):
+        memory_store.get(memory.id)

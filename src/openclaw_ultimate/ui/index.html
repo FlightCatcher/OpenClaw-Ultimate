@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="description" content="VELA 本地 AI Agent 操作系统控制台">
+    <title>VELA · Local Agent Command Deck</title>
+    <link rel="stylesheet" href="/assets/styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">V</div>
+          <div>
+            <strong>VELA</strong>
+            <span>维澜 · LOCAL AGENT OS</span>
+          </div>
+        </div>
+
+        <nav aria-label="主导航">
+          <button class="nav-item active" data-view="overview"><span>◈</span>总览</button>
+          <button class="nav-item" data-view="tasks"><span>◇</span>任务</button>
+          <button class="nav-item" data-view="chat"><span>⌁</span>对话</button>
+          <button class="nav-item" data-view="knowledge"><span>▤</span>知识库</button>
+          <button class="nav-item" data-view="memory"><span>◎</span>记忆</button>
+          <button class="nav-item" data-view="safety"><span>⬡</span>安全中心</button>
+          <button class="nav-item" data-view="integrations"><span>⌘</span>集成</button>
+        </nav>
+
+        <div class="sidebar-foot">
+          <div class="local-badge"><i></i> 数据留在本机</div>
+          <p id="version-label">正在读取版本…</p>
+        </div>
+      </aside>
+
+      <main>
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">VERIFIED EXECUTIVE LOCAL AGENT</p>
+            <h1 id="view-title">系统总览</h1>
+          </div>
+          <div class="top-actions">
+            <span class="system-pill" id="system-pill"><i></i>连接中</span>
+            <button class="icon-button" id="refresh-all" title="刷新所有数据" aria-label="刷新所有数据">↻</button>
+          </div>
+        </header>
+
+        <section class="view active" id="view-overview">
+          <article class="hero">
+            <div>
+              <p class="eyebrow">LOCAL INTELLIGENCE, DELIBERATE ACTION</p>
+              <h2>思考在本地，行动有依据。</h2>
+              <p>VELA 把 OpenClaw、Ollama、工具、知识和安全控制连接成一个可验证的执行系统。</p>
+            </div>
+            <form id="quick-plan-form" class="quick-command">
+              <label for="quick-goal">交给 VELA 一个目标</label>
+              <div>
+                <input id="quick-goal" autocomplete="off" placeholder="例如：分析项目状态并生成下一步计划">
+                <button type="submit" class="primary">创建计划</button>
+              </div>
+            </form>
+          </article>
+
+          <div class="metric-grid" id="metric-grid"></div>
+
+          <div class="split-grid">
+            <article class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">LIVE SYSTEM</p>
+                  <h3>组件状态</h3>
+                </div>
+                <span class="timestamp" id="status-time">—</span>
+              </div>
+              <div class="component-list" id="component-list">
+                <div class="skeleton"></div><div class="skeleton"></div>
+              </div>
+            </article>
+            <article class="panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">RECENT ACTIVITY</p>
+                  <h3>最近任务</h3>
+                </div>
+                <button class="text-button" data-jump="tasks">查看全部</button>
+              </div>
+              <div id="recent-plans" class="compact-list"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="view-tasks">
+          <div class="section-grid tasks-layout">
+            <article class="panel">
+              <div class="panel-head">
+                <div><p class="eyebrow">TASK GRAPH</p><h3>任务计划</h3></div>
+                <span class="count-badge" id="plan-count">0</span>
+              </div>
+              <form id="plan-form" class="stack-form">
+                <textarea id="plan-goal" rows="3" placeholder="描述最终目标，VELA 会生成结构化 DAG…"></textarea>
+                <button class="primary" type="submit">生成新计划</button>
+              </form>
+              <div class="plan-list" id="plan-list"></div>
+            </article>
+            <article class="panel detail-panel" id="plan-detail">
+              <div class="empty-state">
+                <span>◇</span>
+                <h3>选择一个计划</h3>
+                <p>查看步骤依赖、执行状态、结果与失败反思。</p>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="view-chat">
+          <article class="panel chat-panel">
+            <div class="panel-head">
+              <div><p class="eyebrow">LOCAL CONVERSATION</p><h3>与 VELA 对话</h3></div>
+              <span class="model-chip">qwen3:8b</span>
+            </div>
+            <div class="chat-log" id="chat-log">
+              <div class="message assistant">
+                <span>VELA</span>
+                <p>我已经连接到你的本地模型、OpenClaw、知识库和工具。告诉我你想完成什么。</p>
+              </div>
+            </div>
+            <form id="chat-form" class="chat-composer">
+              <textarea id="chat-message" rows="2" placeholder="输入消息，Enter 发送，Shift+Enter 换行"></textarea>
+              <button class="primary" type="submit">发送</button>
+            </form>
+          </article>
+        </section>
+
+        <section class="view" id="view-knowledge">
+          <div class="section-grid">
+            <article class="panel">
+              <div class="panel-head">
+                <div><p class="eyebrow">LOCAL RAG</p><h3>知识检索</h3></div>
+                <button class="secondary" id="index-knowledge">增量索引</button>
+              </div>
+              <form id="knowledge-form" class="search-row">
+                <input id="knowledge-query" placeholder="搜索 OpenClaw、Ollama、项目文档…">
+                <button class="primary" type="submit">搜索</button>
+              </form>
+              <div class="knowledge-stats" id="knowledge-stats"></div>
+              <div class="search-results" id="knowledge-results">
+                <div class="empty-state small"><span>▤</span><p>输入问题后会返回带文件和行号的本地来源。</p></div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="view-memory">
+          <div class="section-grid memory-layout">
+            <article class="panel">
+              <div class="panel-head">
+                <div><p class="eyebrow">GOVERNED MEMORY</p><h3>新增记忆</h3></div>
+              </div>
+              <form id="memory-form" class="stack-form">
+                <textarea id="memory-content" rows="4" placeholder="只保存未来真正有帮助的信息…"></textarea>
+                <div class="field-row">
+                  <label>类型<select id="memory-type"><option value="fact">事实</option><option value="preference">偏好</option><option value="decision">决策</option><option value="project">项目</option></select></label>
+                  <label>重要度<input id="memory-importance" type="range" min="0" max="1" step="0.1" value="0.6"></label>
+                  <label>敏感度<select id="memory-sensitivity"><option value="normal">普通</option><option value="private">私密</option><option value="restricted">受限</option></select></label>
+                </div>
+                <button class="primary" type="submit">保存到本地记忆</button>
+              </form>
+            </article>
+            <article class="panel">
+              <div class="panel-head">
+                <div><p class="eyebrow">MEMORY VAULT</p><h3>长期记忆</h3></div>
+                <span class="count-badge" id="memory-count">0</span>
+              </div>
+              <div id="memory-list" class="memory-list"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="view-safety">
+          <div class="section-grid">
+            <article class="panel">
+              <div class="panel-head">
+                <div><p class="eyebrow">HUMAN IN CONTROL</p><h3>待确认操作</h3></div>
+                <span class="count-badge warning" id="confirmation-count">0</span>
+              </div>
+              <div id="confirmation-list" class="confirmation-list"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-head">
+                <div><p class="eyebrow">AUDIT TRAIL</p><h3>审计记录</h3></div>
+              </div>
+              <div id="audit-list" class="audit-list"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="view-integrations">
+          <div class="integration-grid" id="integration-grid"></div>
+          <article class="panel">
+            <div class="panel-head">
+              <div><p class="eyebrow">MODEL ROUTING</p><h3>本地模型策略</h3></div>
+            </div>
+            <div class="route-table">
+              <div><span>日常对话</span><strong>qwen3:8b</strong></div>
+              <div><span>代码任务</span><strong>qwen2.5-coder:7b</strong></div>
+              <div><span>视觉理解</span><strong>qwen3-vl:8b</strong></div>
+              <div><span>知识向量</span><strong>qwen3-embedding:0.6b</strong></div>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="/assets/app.js" defer></script>
+  </body>
+</html>

@@ -1,0 +1,29 @@
+name: VELA Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install uv
+      - run: uv sync --dev --locked
+      - run: uv run ruff check .
+      - run: uv run mypy src
+      - run: uv run pytest
+      - run: uv build
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: VELA ${{ github.ref_name }}
+          generate_release_notes: true
+          files: dist/*

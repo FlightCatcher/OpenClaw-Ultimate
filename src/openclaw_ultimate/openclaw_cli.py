@@ -31,7 +31,7 @@ def build_openclaw_client(
 
 @openclaw_app.command("status")
 def openclaw_status() -> None:
-    """检查 OCU 与本机 OpenClaw 的真实连接。"""
+    """检查 VELA 与本机 OpenClaw 的真实连接。"""
 
     client = build_openclaw_client(load_settings())
 
@@ -42,7 +42,7 @@ def openclaw_status() -> None:
         console.print(f"[red]OpenClaw 接入失败：{exc}[/red]")
         raise typer.Exit(code=1) from exc
 
-    table = Table(title="OCU ↔ OpenClaw")
+    table = Table(title="VELA ↔ OpenClaw")
     table.add_column("项目")
     table.add_column("状态")
     table.add_row("Gateway 存活", "是" if health.live else "否")
@@ -79,7 +79,7 @@ def openclaw_ask(
         help="临时覆盖 OpenClaw 后端模型",
     ),
 ) -> None:
-    """通过 OCU 调用现有 OpenClaw Agent。"""
+    """通过 VELA 调用现有 OpenClaw Agent。"""
 
     client = build_openclaw_client(load_settings())
 

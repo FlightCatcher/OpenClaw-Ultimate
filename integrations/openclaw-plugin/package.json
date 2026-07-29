@@ -1,7 +1,7 @@
 {
   "name": "@ocu/openclaw-ultimate",
-  "version": "0.1.0",
-  "description": "Connects OpenClaw to the local OpenClaw Ultimate planning runtime.",
+  "version": "1.0.0",
+  "description": "Connects OpenClaw to the local VELA agent operating system.",
   "type": "module",
   "peerDependencies": {
     "openclaw": ">=2026.7.1"

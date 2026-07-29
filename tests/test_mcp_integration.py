@@ -110,7 +110,9 @@ for line in sys.stdin:
         command=(sys.executable, str(server_path)),
     )
 
-    with StdioMcpClient(config, timeout=3) as client:
+    # Windows process startup can exceed three seconds on a busy local AI
+    # workstation even though the stdio protocol is healthy.
+    with StdioMcpClient(config, timeout=10) as client:
         tools = client.list_tools()
         result = client.call_tool(
             "echo",
@@ -150,11 +152,14 @@ for line in sys.stdin:
         encoding="utf-8",
     )
 
-    with StdioMcpClient(
-        McpServerConfig(
-            name="fake",
-            command=(sys.executable, str(server_path)),
-        ),
-        timeout=3,
-    ) as client, pytest.raises(McpConfigurationError, match="not advertised"):
+    with (
+        StdioMcpClient(
+            McpServerConfig(
+                name="fake",
+                command=(sys.executable, str(server_path)),
+            ),
+            timeout=3,
+        ) as client,
+        pytest.raises(McpConfigurationError, match="not advertised"),
+    ):
         client.call_tool("missing", {})

@@ -70,7 +70,7 @@ function runBridge(config, request) {
       child.kill();
       finish(() =>
         reject(
-          new Error(`OCU bridge timed out after ${config.timeoutMs} ms.`),
+          new Error(`VELA bridge timed out after ${config.timeoutMs} ms.`),
         ),
       );
     }, config.timeoutMs);
@@ -81,7 +81,7 @@ function runBridge(config, request) {
       stdout += chunk;
       if (stdout.length > 5_000_000) {
         child.kill();
-        finish(() => reject(new Error("OCU bridge output exceeded 5 MB.")));
+        finish(() => reject(new Error("VELA bridge output exceeded 5 MB.")));
       }
     });
     child.stderr.on("data", (chunk) => {
@@ -101,7 +101,7 @@ function runBridge(config, request) {
         } catch {
           reject(
             new Error(
-              `OCU bridge returned invalid JSON (exit ${code}): ${stderr.slice(
+              `VELA bridge returned invalid JSON (exit ${code}): ${stderr.slice(
                 0,
                 1000,
               )}`,
@@ -114,7 +114,7 @@ function runBridge(config, request) {
           const message =
             payload?.error?.message ||
             stderr.trim().slice(0, 1000) ||
-            `OCU bridge failed with exit code ${code}.`;
+            `VELA bridge failed with exit code ${code}.`;
           reject(new Error(message));
           return;
         }
@@ -129,16 +129,16 @@ function runBridge(config, request) {
 
 export default definePluginEntry({
   id: "openclaw-ultimate",
-  name: "OpenClaw Ultimate",
-  description: "Adds OCU planning, DAG execution and reflection to OpenClaw.",
+  name: "VELA for OpenClaw",
+  description: "Adds VELA planning, DAG execution and reflection to OpenClaw.",
   register(api) {
     const config = readConfig(api.pluginConfig);
 
     api.registerTool({
       name: "ocu_plan",
       description:
-        "Use the local OpenClaw Ultimate runtime to create, inspect, execute, " +
-        "or reflect on persisted DAG plans. plan_run can execute OCU tools; " +
+        "Use the local VELA runtime to create, inspect, execute, " +
+        "or reflect on persisted DAG plans. plan_run can execute VELA tools; " +
         "use it only when the user asked to run the plan.",
       parameters: {
         type: "object",
@@ -183,7 +183,7 @@ export default definePluginEntry({
     api.registerTool({
       name: "ocu_knowledge",
       description:
-        "Search the local OCU knowledge index and return source file and " +
+        "Search the local VELA knowledge index and return source file and " +
         "line citations. Use knowledge_status to inspect index readiness.",
       parameters: {
         type: "object",

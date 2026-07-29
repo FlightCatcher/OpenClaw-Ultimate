@@ -29,19 +29,19 @@ if ($Full) {
     }
 }
 
-& uv --directory $resolvedRoot run ocu status
+& uv --directory $resolvedRoot run vela status
 
 if ($LASTEXITCODE -ne 0) {
-    throw "Unified OCU diagnostics failed."
+    throw "Unified VELA diagnostics failed."
 }
 
-& uv --directory $resolvedRoot run ocu openclaw status
+& uv --directory $resolvedRoot run vela openclaw status
 
 if ($LASTEXITCODE -ne 0) {
     throw "OpenClaw integration verification failed."
 }
 
-& uv --directory $resolvedRoot run ocu model routes
+& uv --directory $resolvedRoot run vela model routes
 
 if ($LASTEXITCODE -ne 0) {
     throw "Model route verification failed."
@@ -52,7 +52,28 @@ $health = Invoke-RestMethod `
     -TimeoutSec 30
 
 if ($health.ok -ne $true) {
-    throw "OCU local API is not ready."
+    throw "VELA local API is not ready."
 }
 
-Write-Host "[OK] OCU verification completed."
+$meta = Invoke-RestMethod `
+    -Uri "http://127.0.0.1:$Port/v1/meta" `
+    -TimeoutSec 30
+
+if ($meta.data.version -ne "1.0.0" -or $meta.data.name -ne "VELA") {
+    throw "VELA UI/API metadata is not v1.0.0."
+}
+
+$mcp = Invoke-RestMethod `
+    -Uri "http://127.0.0.1:$Port/v1/mcp/status" `
+    -TimeoutSec 30
+
+if ($mcp.data.enabled -ne $true) {
+    throw "VELA MCP integration is not enabled."
+}
+
+& uv --directory $resolvedRoot run python scripts\verify_databases.py .openclaw
+if ($LASTEXITCODE -ne 0) {
+    throw "VELA database integrity verification failed."
+}
+
+Write-Host "[OK] VELA verification completed."

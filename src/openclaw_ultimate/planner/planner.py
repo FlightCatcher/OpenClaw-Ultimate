@@ -72,7 +72,7 @@ class StructuredPlanner:
         tool_names = [tool.name for tool in tools]
 
         return (
-            "你是 OpenClaw-Ultimate 的任务规划器。"
+            "你是 VELA 的任务规划器。"
             "把用户目标拆成可验证、粒度适中的有向无环步骤。"
             f"最多 {self.max_steps} 步。"
             "只输出 JSON，不要 Markdown。格式："

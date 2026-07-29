@@ -1,8 +1,8 @@
 
 [project]
 name = "openclaw-ultimate"
-version = "0.1.0"
-description = "Local-first modular AI agent platform"
+version = "1.0.0"
+description = "VELA — verified, local-first AI agent operating system"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
@@ -12,6 +12,7 @@ dependencies = [
   "ollama>=0.4",
   "pydantic>=2.8",
   "pydantic-settings>=2.4",
+  "pypdf>=5.0",
   "pyyaml>=6.0",
   "rich>=13.7",
   "typer>=0.12",
@@ -19,6 +20,7 @@ dependencies = [
 
 [project.scripts]
 ocu = "openclaw_ultimate.cli:app"
+vela = "openclaw_ultimate.cli:app"
 
 [dependency-groups]
 dev = ["mypy>=1.11", "pytest>=8.3", "ruff>=0.6"]
@@ -42,3 +44,9 @@ target-version = "py312"
 python_version = "3.12"
 mypy_path = "src"
 explicit_package_bases = true
+cache_dir = ".openclaw/mypy-cache"
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = ["pypdf", "pypdf.*"]
+follow_imports = "skip"

@@ -4,8 +4,13 @@ import asyncio
 import os
 import subprocess
 from collections.abc import Sequence
+from hashlib import sha256
 from pathlib import Path
 
+from openclaw_ultimate.governance import (
+    RiskLevel,
+    SQLiteGovernanceStore,
+)
 from openclaw_ultimate.tools.workspace import (
     WorkspaceAccessError,
     WorkspaceTools,
@@ -22,6 +27,7 @@ class SafeCommandRunner:
         allowed_commands: Sequence[str],
         timeout: float = 30.0,
         max_output_characters: int = 20_000,
+        governance_store: SQLiteGovernanceStore | None = None,
     ) -> None:
         if timeout <= 0:
             raise ValueError("timeout must be greater than zero.")
@@ -35,6 +41,7 @@ class SafeCommandRunner:
         )
         self.timeout = timeout
         self.max_output_characters = max_output_characters
+        self.governance_store = governance_store
 
     async def run_command(
         self,
@@ -53,6 +60,26 @@ class SafeCommandRunner:
             raise NotADirectoryError("working_directory must be a directory.")
 
         clean_arguments = tuple(str(argument) for argument in arguments)
+        risk = self._classify(normalized, clean_arguments)
+        if risk != RiskLevel.READ_ONLY:
+            if self.governance_store is None:
+                raise WorkspaceAccessError(
+                    "This command requires explicit confirmation, but no "
+                    "governance store is configured."
+                )
+            action = f"shell.{normalized}"
+            fingerprint = sha256(
+                "\0".join((normalized, *clean_arguments, str(cwd))).encode("utf-8")
+            ).hexdigest()[:24]
+            self.governance_store.require_confirmation(
+                action=action,
+                description=(
+                    f"Run {command} with {len(clean_arguments)} argument(s) "
+                    f"inside {self.workspace.relative_path(cwd)}"
+                ),
+                risk=risk,
+                resource_id=fingerprint,
+            )
         creation_flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
         process = await asyncio.create_subprocess_exec(
             command,
@@ -113,3 +140,38 @@ class SafeCommandRunner:
         name = name.removesuffix(".exe")
 
         return name
+
+    @staticmethod
+    def _classify(
+        command: str,
+        arguments: Sequence[str],
+    ) -> RiskLevel:
+        if command == "git" and arguments:
+            if arguments[0].casefold() in {
+                "status",
+                "diff",
+                "log",
+                "show",
+                "rev-parse",
+                "ls-files",
+            }:
+                return RiskLevel.READ_ONLY
+            if arguments[0].casefold() == "branch" and "--delete" not in arguments:
+                return RiskLevel.READ_ONLY
+        if command in {"python", "python3"} and tuple(arguments) in {
+            ("--version",),
+            ("-V",),
+        }:
+            return RiskLevel.READ_ONLY
+        if command in {"pytest", "ruff", "mypy"}:
+            return RiskLevel.READ_ONLY
+        if (
+            command == "uv"
+            and len(arguments) >= 2
+            and arguments[0] == "run"
+            and Path(arguments[1]).name.casefold() in {"pytest", "ruff", "mypy"}
+        ):
+            return RiskLevel.READ_ONLY
+        if command == "git":
+            return RiskLevel.HIGH
+        return RiskLevel.REVERSIBLE

@@ -18,6 +18,7 @@ class PlanStatus(StrEnum):
     DRAFT = "draft"
     READY = "ready"
     RUNNING = "running"
+    PAUSED = "paused"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"

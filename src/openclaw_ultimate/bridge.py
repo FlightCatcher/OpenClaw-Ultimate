@@ -7,7 +7,9 @@ from dataclasses import asdict
 from typing import Any
 
 from openclaw_ultimate.app import build_default_agent
+from openclaw_ultimate.branding import PRODUCT_NAME, VERSION
 from openclaw_ultimate.config import Settings, load_settings
+from openclaw_ultimate.governance import SQLiteGovernanceStore
 from openclaw_ultimate.planner import (
     ErrorContext,
     PlanExecutor,
@@ -29,12 +31,12 @@ async def handle_request(
     *,
     settings: Settings | None = None,
 ) -> dict[str, Any]:
-    """执行 OpenClaw 插件发来的单个结构化 OCU 请求。"""
+    """执行 OpenClaw 插件发来的单个结构化 VELA 请求。"""
 
     action = _required_text(payload, "action")
     current_settings = (settings or load_settings()).model_copy(
         update={
-            # OpenClaw 调 OCU 时禁止 OCU 再委托回 OpenClaw，避免递归。
+            # OpenClaw 调 VELA 时禁止 VELA 再委托回 OpenClaw，避免递归。
             "openclaw_enabled": False,
         }
     )
@@ -85,8 +87,8 @@ async def handle_request(
         return _success(
             action,
             {
-                "service": "OpenClaw Ultimate",
-                "version": "0.1.0",
+                "service": PRODUCT_NAME,
+                "version": VERSION,
                 "planner_database": str(current_settings.planner_db_path),
                 "plan_count": len(plans),
                 "openclaw_recursion_guard": True,
@@ -124,7 +126,9 @@ async def handle_request(
         plan_id = _required_text(payload, "plan_id")
         plan = store.get(plan_id)
         agent = build_default_agent(current_settings)
-        result = await PlanExecutor().execute(
+        result = await PlanExecutor(
+            control_store=SQLiteGovernanceStore(current_settings.governance_db_path)
+        ).execute(
             plan=plan,
             agent=agent,
             store=store,
@@ -135,6 +139,7 @@ async def handle_request(
                 "plan": _serialize_plan(result.plan),
                 "completed_step_ids": list(result.completed_step_ids),
                 "failed_step_id": result.failed_step_id,
+                "interrupted_reason": result.interrupted_reason,
             },
         )
 
@@ -182,6 +187,7 @@ def _serialize_plan_bundle(
             asdict(item) for item in store.list_retry_attempts_for_plan(plan_id=plan_id)
         ],
         "revisions": [asdict(item) for item in store.list_revisions(plan_id=plan_id)],
+        "verifications": [asdict(item) for item in store.list_verifications(plan_id=plan_id)],
     }
 
 

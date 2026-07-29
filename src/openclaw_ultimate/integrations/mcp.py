@@ -74,6 +74,8 @@ class McpServerRegistry:
     def load(
         cls,
         path: Path,
+        *,
+        project_root: Path | None = None,
     ) -> McpServerRegistry:
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
@@ -89,11 +91,22 @@ class McpServerRegistry:
         if not isinstance(raw_servers, list):
             raise McpConfigurationError("MCP server config must contain a 'servers' list.")
 
-        return cls(tuple(cls._parse_server(item) for item in raw_servers if isinstance(item, dict)))
+        return cls(
+            tuple(
+                cls._parse_server(
+                    item,
+                    project_root=project_root,
+                )
+                for item in raw_servers
+                if isinstance(item, dict)
+            )
+        )
 
     @staticmethod
     def _parse_server(
         raw: Mapping[str, Any],
+        *,
+        project_root: Path | None = None,
     ) -> McpServerConfig:
         name = raw.get("name")
         command = raw.get("command")
@@ -120,11 +133,16 @@ class McpServerRegistry:
         if not isinstance(enabled, bool):
             raise McpConfigurationError(f"MCP server '{name}' enabled must be boolean.")
 
+        def expand(value: str) -> str:
+            if project_root is None:
+                return value
+            return value.replace("{project_root}", str(project_root.resolve()))
+
         return McpServerConfig(
             name=name,
-            command=tuple(command),
-            cwd=Path(cwd) if cwd else None,
-            env=MappingProxyType(dict(environment)),
+            command=tuple(expand(part) for part in command),
+            cwd=Path(expand(cwd)) if cwd else None,
+            env=MappingProxyType({key: expand(value) for key, value in environment.items()}),
             enabled=enabled,
         )
 
@@ -221,8 +239,8 @@ class StdioMcpClient:
                 "protocolVersion": self.protocol_version,
                 "capabilities": {},
                 "clientInfo": {
-                    "name": "openclaw-ultimate",
-                    "version": "0.1.0",
+                    "name": "vela",
+                    "version": "1.0.0",
                 },
             },
         )

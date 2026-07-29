@@ -37,7 +37,7 @@ $configPath = (Resolve-Path -LiteralPath $configPath).Path
 $backupRoot = Join-Path (Split-Path -Parent $configPath) "backups"
 New-Item -ItemType Directory -Force -Path $backupRoot | Out-Null
 $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
-$backupPath = Join-Path $backupRoot "openclaw-before-ocu-$stamp.json"
+$backupPath = Join-Path $backupRoot "openclaw-before-vela-$stamp.json"
 Copy-Item -LiteralPath $configPath -Destination $backupPath
 Write-Host "[OK] OpenClaw config backup: $backupPath"
 
@@ -48,7 +48,7 @@ if (-not $installed) {
     & openclaw plugins install --link $pluginRoot
 
     if ($LASTEXITCODE -ne 0) {
-        throw "Could not link the OpenClaw Ultimate plugin."
+        throw "Could not link the VELA for OpenClaw plugin."
     }
 }
 
@@ -57,7 +57,7 @@ if (-not $installed) {
     $resolvedProjectRoot
 
 if ($LASTEXITCODE -ne 0) {
-    throw "Could not configure the OpenClaw Ultimate project root."
+    throw "Could not configure the VELA project root."
 }
 
 $tools = (& openclaw config get tools | ConvertFrom-Json)
@@ -73,7 +73,7 @@ $alsoAllowJson = ConvertTo-Json -InputObject @($alsoAllow) -Compress
 & openclaw config set tools.alsoAllow $alsoAllowJson --strict-json
 
 if ($LASTEXITCODE -ne 0) {
-    throw "Could not allow the OCU and Browser tools."
+    throw "Could not allow the VELA and Browser tools."
 }
 
 & openclaw config validate
@@ -85,7 +85,7 @@ if ($LASTEXITCODE -ne 0) {
 & openclaw plugins inspect openclaw-ultimate --runtime --json *> $null
 
 if ($LASTEXITCODE -ne 0) {
-    throw "OpenClaw could not load the OpenClaw Ultimate plugin."
+    throw "OpenClaw could not load the VELA plugin."
 }
 
 if (-not $SkipRestart) {
@@ -120,10 +120,10 @@ if (-not $SkipRestart) {
     }
 }
 
-& uv --directory $resolvedProjectRoot run ocu openclaw status
+& uv --directory $resolvedProjectRoot run vela openclaw status
 
 if ($LASTEXITCODE -ne 0) {
-    throw "OCU could not connect back to OpenClaw."
+    throw "VELA could not connect back to OpenClaw."
 }
 
-Write-Host "[OK] Bidirectional OCU <-> OpenClaw integration is ready."
+Write-Host "[OK] Bidirectional VELA <-> OpenClaw integration is ready."

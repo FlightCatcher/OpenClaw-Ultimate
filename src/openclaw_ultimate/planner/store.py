@@ -22,6 +22,10 @@ from openclaw_ultimate.planner.reflection import (
 )
 from openclaw_ultimate.planner.replanning import PlanRevision, RevisionStatus
 from openclaw_ultimate.planner.retry import RetryAttempt
+from openclaw_ultimate.planner.verification import (
+    VerificationResult,
+    VerificationStatus,
+)
 
 
 class PlanNotFoundError(KeyError):
@@ -133,6 +137,21 @@ class SQLitePlanStore:
                 CREATE INDEX IF NOT EXISTS
                     idx_plan_revisions_plan
                 ON plan_revisions(plan_id, revision_number ASC);
+
+                CREATE TABLE IF NOT EXISTS verifications (
+                    verification_id TEXT PRIMARY KEY,
+                    plan_id TEXT NOT NULL,
+                    step_id TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    summary TEXT NOT NULL,
+                    evidence_json TEXT NOT NULL,
+                    confidence REAL NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS
+                    idx_verifications_plan_step
+                ON verifications(plan_id, step_id, created_at ASC);
                 """
             )
             columns = {
@@ -343,6 +362,61 @@ class SQLitePlanStore:
                 ),
             )
         return attempt
+
+    def save_verification(
+        self,
+        verification: VerificationResult,
+    ) -> VerificationResult:
+        with self._connection() as connection:
+            connection.execute(
+                """
+                INSERT INTO verifications (
+                    verification_id, plan_id, step_id, status, summary,
+                    evidence_json, confidence, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    verification.verification_id,
+                    verification.plan_id,
+                    verification.step_id,
+                    verification.status.value,
+                    verification.summary,
+                    json.dumps(verification.evidence, ensure_ascii=False),
+                    verification.confidence,
+                    verification.created_at,
+                ),
+            )
+        return verification
+
+    def list_verifications(
+        self,
+        *,
+        plan_id: str,
+        step_id: str | None = None,
+    ) -> tuple[VerificationResult, ...]:
+        query = "SELECT * FROM verifications WHERE plan_id = ?"
+        parameters: list[str] = [plan_id]
+        if step_id is not None:
+            query += " AND step_id = ?"
+            parameters.append(step_id)
+        query += " ORDER BY created_at ASC, verification_id ASC"
+
+        with self._connection() as connection:
+            rows = connection.execute(query, parameters).fetchall()
+
+        return tuple(
+            VerificationResult(
+                verification_id=row["verification_id"],
+                plan_id=row["plan_id"],
+                step_id=row["step_id"],
+                status=VerificationStatus(row["status"]),
+                summary=row["summary"],
+                evidence=tuple(json.loads(row["evidence_json"])),
+                confidence=float(row["confidence"]),
+                created_at=row["created_at"],
+            )
+            for row in rows
+        )
 
     def list_retry_attempts(
         self,

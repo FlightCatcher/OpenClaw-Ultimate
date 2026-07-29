@@ -14,7 +14,7 @@ import httpx
 
 
 class OpenClawIntegrationError(RuntimeError):
-    """OCU 与本机 OpenClaw 集成失败。"""
+    """VELA 与本机 OpenClaw 集成失败。"""
 
 
 class OpenClawUnavailableError(OpenClawIntegrationError):
@@ -89,7 +89,7 @@ def _default_command_runner(
 class OpenClawCliClient:
     """通过官方 OpenClaw CLI 连接现有 Gateway。
 
-    CLI 会从 OpenClaw 自己的配置中读取本机认证信息，因此 OCU 不复制、
+    CLI 会从 OpenClaw 自己的配置中读取本机认证信息，因此 VELA 不复制、
     不打印、也不持久化 Gateway 密钥。
     """
 

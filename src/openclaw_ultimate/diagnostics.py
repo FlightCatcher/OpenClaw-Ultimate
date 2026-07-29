@@ -7,8 +7,10 @@ from enum import StrEnum
 from openclaw_ultimate.config import Settings
 from openclaw_ultimate.integrations import (
     ComfyUIClient,
+    McpServerRegistry,
     OpenClawCliClient,
     OpenClawComfyProfile,
+    StdioMcpClient,
 )
 from openclaw_ultimate.model_cli import build_model_router
 from openclaw_ultimate.models import (
@@ -190,22 +192,45 @@ async def collect_diagnostics(
             )
         )
 
-    components.append(
-        ComponentDiagnostic(
-            name="mcp",
-            state=(
-                ComponentState.READY
-                if settings.mcp_enabled and settings.mcp_servers_path.is_file()
-                else ComponentState.DISABLED
-            ),
-            detail=(
-                str(settings.mcp_servers_path)
-                if settings.mcp_enabled
-                else "opt-in; no server launched"
-            ),
-            required=False,
+    if settings.mcp_enabled and settings.mcp_servers_path.is_file():
+        try:
+            registry = McpServerRegistry.load(
+                settings.mcp_servers_path,
+                project_root=settings.workspace_root,
+            )
+            tool_count = 0
+            for server_name in registry.names():
+                with StdioMcpClient(
+                    registry.get(server_name),
+                    timeout=min(settings.mcp_timeout, 10.0),
+                ) as mcp_client:
+                    tool_count += len(mcp_client.list_tools())
+            components.append(
+                ComponentDiagnostic(
+                    name="mcp",
+                    state=ComponentState.READY,
+                    detail=f"{len(registry)} server(s); {tool_count} tool(s)",
+                    required=False,
+                )
+            )
+        except Exception as exc:  # noqa: BLE001
+            components.append(
+                ComponentDiagnostic(
+                    name="mcp",
+                    state=ComponentState.DEGRADED,
+                    detail=f"{type(exc).__name__}: {exc}",
+                    required=False,
+                )
+            )
+    else:
+        components.append(
+            ComponentDiagnostic(
+                name="mcp",
+                state=ComponentState.DISABLED,
+                detail="disabled or no allowlist configuration",
+                required=False,
+            )
         )
-    )
     required_states = {component.state for component in components if component.required}
 
     if ComponentState.UNAVAILABLE in required_states:

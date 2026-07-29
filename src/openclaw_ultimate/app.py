@@ -4,12 +4,15 @@ import asyncio
 
 from openclaw_ultimate.config import Settings, load_settings
 from openclaw_ultimate.core.runtime import Agent
+from openclaw_ultimate.governance import SQLiteGovernanceStore
 from openclaw_ultimate.integrations import (
     ComfyUIClient,
     McpServerRegistry,
+    OllamaVisionClient,
     OpenClawCliClient,
     OpenClawComfyProfile,
     StdioMcpClient,
+    WhisperCliClient,
 )
 from openclaw_ultimate.models import OpenAICompatibleModel
 from openclaw_ultimate.rag import build_knowledge_base
@@ -41,7 +44,7 @@ def build_default_agent(
     )
 
     agent = Agent(
-        name="default-agent",
+        name="vela",
         model=model,
         system_prompt=current_settings.system_prompt,
         max_steps=current_settings.max_steps,
@@ -85,6 +88,10 @@ def build_default_agent(
         current_settings,
     )
     _register_knowledge_tool(
+        agent,
+        current_settings,
+    )
+    _register_media_tools(
         agent,
         current_settings,
     )
@@ -179,6 +186,7 @@ def _register_workspace_tools(
         allowed_commands=(settings.shell_allowed_commands),
         timeout=settings.shell_timeout,
         max_output_characters=(settings.shell_max_output_characters),
+        governance_store=SQLiteGovernanceStore(settings.governance_db_path),
     )
     agent.tools.add(
         name="run_command",
@@ -420,6 +428,7 @@ def _register_mcp_tools(
 
     registry = McpServerRegistry.load(
         settings.mcp_servers_path,
+        project_root=settings.workspace_root,
     )
 
     if not len(registry):
@@ -577,3 +586,92 @@ def _register_knowledge_tool(
         },
         handler=search_knowledge,
     )
+
+
+def _register_media_tools(
+    agent: Agent,
+    settings: Settings,
+) -> None:
+    if not settings.vision_enabled and not settings.whisper_enabled:
+        return
+    workspace = WorkspaceTools(
+        settings.workspace_root,
+        max_read_bytes=settings.workspace_max_read_bytes,
+        max_results=settings.workspace_max_results,
+    )
+    if settings.vision_enabled:
+        client = OllamaVisionClient(
+            workspace=workspace,
+            base_url=settings.ollama_base_url,
+            model=settings.vision_model,
+            timeout=settings.media_timeout,
+            max_image_bytes=settings.vision_max_image_bytes,
+        )
+
+        async def analyze_image(
+            path: str,
+            prompt: str = "请描述这张图片，并准确识别其中可见的文字。",
+        ) -> dict[str, str]:
+            result = await asyncio.to_thread(
+                client.analyze,
+                path,
+                prompt=prompt,
+            )
+            return {
+                "model": result.model,
+                "path": result.path,
+                "text": result.text,
+            }
+
+        agent.tools.add(
+            name="analyze_image",
+            description="使用本机 Ollama 视觉模型分析工作区图片或执行 OCR。",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "工作区内的图片路径",
+                    },
+                    "prompt": {
+                        "type": "string",
+                        "description": "希望视觉模型回答的问题",
+                    },
+                },
+                "required": ["path"],
+                "additionalProperties": False,
+            },
+            handler=analyze_image,
+        )
+
+    if settings.whisper_enabled and settings.whisper_model_path is not None:
+        whisper = WhisperCliClient(
+            workspace=workspace,
+            executable=settings.whisper_executable,
+            model_path=settings.whisper_model_path,
+            timeout=settings.media_timeout,
+        )
+
+        async def transcribe_audio(path: str) -> dict[str, str]:
+            result = await asyncio.to_thread(whisper.transcribe, path)
+            return {
+                "path": result.path,
+                "text": result.text,
+            }
+
+        agent.tools.add(
+            name="transcribe_audio",
+            description="使用用户配置的本地 whisper.cpp 模型转录工作区音频。",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "工作区内的音频路径",
+                    }
+                },
+                "required": ["path"],
+                "additionalProperties": False,
+            },
+            handler=transcribe_audio,
+        )

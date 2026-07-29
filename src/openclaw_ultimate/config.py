@@ -15,7 +15,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "OpenClaw Ultimate"
+    app_name: str = "VELA"
     log_level: str = "INFO"
 
     ollama_base_url: str = "http://127.0.0.1:11434"
@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     max_steps: int = 8
 
     system_prompt: str = (
-        "你是 OpenClaw-Ultimate 的本地 AI 助手。"
+        "你是 VELA（维澜），一个由 OpenClaw-Ultimate 提供兼容层的本地 AI 助手。"
         "请使用准确、清晰的中文回答。"
         "当存在合适工具时，应优先使用工具获得可靠结果。"
     )
@@ -103,8 +103,8 @@ class Settings(BaseSettings):
         default_factory=lambda: Path.home() / ".openclaw" / "openclaw.json"
     )
 
-    mcp_enabled: bool = False
-    mcp_servers_path: Path = Path(".openclaw/mcp_servers.json")
+    mcp_enabled: bool = True
+    mcp_servers_path: Path = Path("configs/mcp_servers.local.json")
     mcp_timeout: float = 30.0
 
     knowledge_enabled: bool = True
@@ -118,10 +118,19 @@ class Settings(BaseSettings):
     knowledge_minimum_score: float = 0.2
     knowledge_max_context_characters: int = 5000
 
+    vision_enabled: bool = True
+    vision_model: str = "qwen3-vl:8b"
+    vision_max_image_bytes: int = 20_000_000
+    whisper_enabled: bool = False
+    whisper_executable: str = "whisper-cli"
+    whisper_model_path: Path | None = None
+    media_timeout: float = 600.0
+
     api_host: str = "127.0.0.1"
     api_port: int = 8765
     api_allow_remote: bool = False
     api_max_body_bytes: int = 1_000_000
+    governance_db_path: Path = Path(".openclaw/governance.db")
 
     @property
     def openai_base_url(self) -> str:

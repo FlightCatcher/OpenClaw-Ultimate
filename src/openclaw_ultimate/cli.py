@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import threading
+import webbrowser
 from collections.abc import Sequence
 
 import typer
@@ -59,7 +61,7 @@ from openclaw_ultimate.sessions import (
 
 app = typer.Typer(
     no_args_is_help=True,
-    help="OpenClaw-Ultimate 本地 AI Agent 平台",
+    help="VELA（兼容 OpenClaw-Ultimate）本地 AI Agent 操作系统",
 )
 
 session_app = typer.Typer(
@@ -113,10 +115,10 @@ def doctor() -> None:
 
 @app.command("status")
 def unified_status() -> None:
-    """显示 OCU、OpenClaw、模型、知识库和工具后端状态。"""
+    """显示 VELA、OpenClaw、模型、知识库和工具后端状态。"""
 
     report = asyncio.run(collect_diagnostics(load_settings()))
-    table = Table(title=f"OCU 系统状态：{report.state.value}")
+    table = Table(title=f"VELA 系统状态：{report.state.value}")
     table.add_column("组件")
     table.add_column("状态")
     table.add_column("详情")
@@ -149,7 +151,7 @@ def serve(
         help="监听端口",
     ),
 ) -> None:
-    """启动 OCU 本地 JSON API。"""
+    """启动 VELA 本地 API 和控制台。"""
 
     settings = load_settings()
     updates: dict[str, object] = {}
@@ -165,12 +167,45 @@ def serve(
 
     server = LocalApiServer(settings)
     address = server.address
-    console.print(f"[green]OCU API 已启动：[/green]http://{address[0]}:{address[1]}")
+    console.print(f"[green]VELA 已启动：[/green]http://{address[0]}:{address[1]}")
 
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        console.print("\n[yellow]OCU API 已停止。[/yellow]")
+        console.print("\n[yellow]VELA 已停止。[/yellow]")
+    finally:
+        server.shutdown()
+
+
+@app.command()
+def ui(
+    port: int = typer.Option(
+        8765,
+        "--port",
+        min=1,
+        max=65535,
+        help="本地控制台端口",
+    ),
+) -> None:
+    """启动并打开 VELA 本地控制台。"""
+
+    settings = load_settings().model_copy(
+        update={
+            "api_host": "127.0.0.1",
+            "api_port": port,
+        }
+    )
+    server = LocalApiServer(settings)
+    url = f"http://127.0.0.1:{server.address[1]}/"
+    threading.Timer(
+        0.4,
+        lambda: webbrowser.open(url),
+    ).start()
+    console.print(f"[green]VELA Command Deck：[/green]{url}")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        console.print("\n[yellow]VELA 已停止。[/yellow]")
     finally:
         server.shutdown()
 

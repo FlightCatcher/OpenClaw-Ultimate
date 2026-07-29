@@ -66,6 +66,7 @@ def test_bridge_plan_show_returns_persisted_plan(
     assert result["data"]["plan"]["id"] == plan.id
     assert result["data"]["plan"]["goal"] == "检查 README"
     assert result["data"]["reflections"] == []
+    assert result["data"]["verifications"] == []
 
 
 def test_bridge_knowledge_status_reports_local_index(

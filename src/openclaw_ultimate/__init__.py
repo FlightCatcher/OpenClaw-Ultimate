@@ -1,3 +1,4 @@
+from openclaw_ultimate.branding import VERSION
 from openclaw_ultimate.core import (
     Agent,
     AgentRuntime,
@@ -11,6 +12,8 @@ from openclaw_ultimate.core import (
 )
 from openclaw_ultimate.models import ModelClient, ModelResponse
 
+__version__ = VERSION
+
 __all__ = [
     "Agent",
     "AgentRuntime",
@@ -23,4 +26,5 @@ __all__ = [
     "RuntimeState",
     "ToolCall",
     "ToolRegistry",
+    "__version__",
 ]

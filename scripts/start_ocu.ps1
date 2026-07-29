@@ -12,7 +12,7 @@ $logRoot = Join-Path $stateRoot "logs"
 $pidPath = Join-Path $stateRoot "ocu-api.pid"
 
 if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
-    throw "OCU environment is missing. Run .\bootstrap.ps1 first."
+    throw "VELA environment is missing. Run .\bootstrap.ps1 first."
 }
 
 $existing = Get-NetTCPConnection `
@@ -22,11 +22,14 @@ $existing = Get-NetTCPConnection `
 
 if ($existing) {
     try {
-        $health = Invoke-RestMethod `
-            -Uri "http://127.0.0.1:$Port/health" `
+        $meta = Invoke-RestMethod `
+            -Uri "http://127.0.0.1:$Port/v1/meta" `
             -TimeoutSec 5
 
-        if ($health.ok -eq $true) {
+        if (
+            $meta.ok -eq $true -and
+            $meta.data.name -eq "VELA"
+        ) {
             $owner = (
                 Get-NetTCPConnection `
                     -LocalPort $Port `
@@ -39,12 +42,12 @@ if ($existing) {
                 -LiteralPath $pidPath `
                 -Value $owner `
                 -NoNewline
-            Write-Host "[OK] OCU API is already ready on port $Port."
+            Write-Host "[OK] VELA API is already ready on port $Port."
             exit 0
         }
     }
     catch {
-        # The listener exists but is not the OCU API.
+        # The listener exists but is not the VELA API.
     }
 
     throw "Port $Port is already used by another process."
@@ -70,11 +73,14 @@ $process = Start-Process `
 
 for ($attempt = 0; $attempt -lt 30; $attempt++) {
     try {
-        $health = Invoke-RestMethod `
-            -Uri "http://127.0.0.1:$Port/health" `
+        $meta = Invoke-RestMethod `
+            -Uri "http://127.0.0.1:$Port/v1/meta" `
             -TimeoutSec 5
 
-        if ($health.ok -eq $true) {
+        if (
+            $meta.ok -eq $true -and
+            $meta.data.name -eq "VELA"
+        ) {
             $owner = (
                 Get-NetTCPConnection `
                     -LocalPort $Port `
@@ -86,7 +92,7 @@ for ($attempt = 0; $attempt -lt 30; $attempt++) {
                 -LiteralPath $pidPath `
                 -Value $owner `
                 -NoNewline
-            Write-Host "[OK] OCU API ready: http://127.0.0.1:$Port"
+            Write-Host "[OK] VELA API ready: http://127.0.0.1:$Port"
             Write-Host "[OK] PID: $owner"
             exit 0
         }
@@ -111,4 +117,4 @@ if ($listener) {
         -ErrorAction SilentlyContinue
 }
 
-throw "OCU API did not become ready within 30 seconds."
+throw "VELA API did not become ready within 30 seconds."

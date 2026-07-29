@@ -9,6 +9,10 @@ import pytest
 from openclaw_ultimate.core.messages import Message
 from openclaw_ultimate.core.runtime import Agent
 from openclaw_ultimate.core.tools import ToolDefinition
+from openclaw_ultimate.governance import (
+    PlanControlState,
+    SQLiteGovernanceStore,
+)
 from openclaw_ultimate.models.base import ModelResponse
 from openclaw_ultimate.planner import (
     PlanExecutionError,
@@ -148,3 +152,31 @@ def test_executor_rejects_completed_plan(
                 store=store,
             )
         )
+
+
+def test_executor_honors_persisted_pause_before_running_steps(
+    tmp_path: Path,
+) -> None:
+    async def run_test() -> None:
+        plan = create_plan()
+        store = SQLitePlanStore(tmp_path / "plans.db")
+        governance = SQLiteGovernanceStore(tmp_path / "governance.db")
+        store.save(plan)
+        governance.set_plan_control(plan.id, PlanControlState.PAUSE)
+
+        result = await PlanExecutor(
+            control_store=governance,
+        ).execute(
+            plan=plan,
+            agent=Agent(
+                name="executor-test",
+                model=ExecutorFakeModel(()),
+            ),
+            store=store,
+        )
+
+        assert result.plan.status == PlanStatus.PAUSED
+        assert result.interrupted_reason == "paused"
+        assert result.completed_step_ids == ()
+
+    asyncio.run(run_test())

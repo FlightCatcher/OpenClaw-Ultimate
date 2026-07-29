@@ -7,6 +7,7 @@ from openclaw_ultimate.core.runtime import (
     Agent,
     AgentRuntime,
 )
+from openclaw_ultimate.governance import PlanControlState, SQLiteGovernanceStore
 from openclaw_ultimate.planner.graph import TaskGraph
 from openclaw_ultimate.planner.models import (
     PlanStatus,
@@ -17,6 +18,10 @@ from openclaw_ultimate.planner.models import (
 from openclaw_ultimate.planner.reflection import ErrorContext, ReflectionEngine
 from openclaw_ultimate.planner.retry import RetryPolicy
 from openclaw_ultimate.planner.store import SQLitePlanStore
+from openclaw_ultimate.planner.verification import (
+    RuleBasedVerifier,
+    StepVerificationError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +35,7 @@ class PlanExecutionResult:
     plan: TaskPlan
     completed_step_ids: tuple[str, ...]
     failed_step_id: str | None = None
+    interrupted_reason: str | None = None
 
 
 class PlanExecutor:
@@ -42,11 +48,15 @@ class PlanExecutor:
         stop_on_failure: bool = True,
         reflection_engine: ReflectionEngine | None = None,
         retry_policy: RetryPolicy | None = None,
+        control_store: SQLiteGovernanceStore | None = None,
+        verifier: RuleBasedVerifier | None = None,
     ) -> None:
         self.runtime = runtime or AgentRuntime()
         self.stop_on_failure = stop_on_failure
         self.reflection_engine = reflection_engine or ReflectionEngine()
         self.retry_policy = retry_policy or RetryPolicy()
+        self.control_store = control_store
+        self.verifier = verifier or RuleBasedVerifier()
 
     async def execute(
         self,
@@ -68,6 +78,14 @@ class PlanExecutor:
         ]
 
         while True:
+            interrupted = self._apply_control(current, store)
+            if interrupted is not None:
+                return PlanExecutionResult(
+                    plan=interrupted,
+                    completed_step_ids=tuple(completed_ids),
+                    interrupted_reason=interrupted.status.value,
+                )
+
             graph = TaskGraph(current.steps)
             ready = graph.ready_steps()
 
@@ -75,6 +93,14 @@ class PlanExecutor:
                 break
 
             for step in ready:
+                interrupted = self._apply_control(current, store)
+                if interrupted is not None:
+                    return PlanExecutionResult(
+                        plan=interrupted,
+                        completed_step_ids=tuple(completed_ids),
+                        interrupted_reason=interrupted.status.value,
+                    )
+
                 current = self._replace_step(
                     current,
                     step.with_status(StepStatus.RUNNING),
@@ -89,6 +115,14 @@ class PlanExecutor:
                             step,
                         ),
                     )
+                    verification = self.verifier.verify(
+                        plan=current,
+                        step=step,
+                        runtime_result=result,
+                    )
+                    store.save_verification(verification)
+                    if not verification.passed:
+                        raise StepVerificationError(verification)
                 except Exception as exc:  # noqa: BLE001 - executor must persist any agent failure
                     current = self._replace_step(
                         current,
@@ -182,6 +216,23 @@ class PlanExecutor:
             plan=current,
             completed_step_ids=tuple(completed_ids),
         )
+
+    def _apply_control(
+        self,
+        plan: TaskPlan,
+        store: SQLitePlanStore,
+    ) -> TaskPlan | None:
+        if self.control_store is None:
+            return None
+        state = self.control_store.plan_control_state(plan.id)
+        if state == PlanControlState.PAUSE:
+            interrupted = plan.with_status(PlanStatus.PAUSED)
+        elif state == PlanControlState.CANCEL:
+            interrupted = plan.with_status(PlanStatus.CANCELLED)
+        else:
+            return None
+        store.save(interrupted)
+        return interrupted
 
     @staticmethod
     def _replace_step(

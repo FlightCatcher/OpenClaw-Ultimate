@@ -17,7 +17,7 @@ def test_build_default_agent() -> None:
 
     agent = build_default_agent(settings)
 
-    assert agent.name == "default-agent"
+    assert agent.name == "vela"
     assert agent.max_steps == 6
     assert isinstance(
         agent.model,

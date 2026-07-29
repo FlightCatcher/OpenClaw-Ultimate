@@ -34,6 +34,12 @@ from openclaw_ultimate.planner.store import (
     PlanNotFoundError,
     SQLitePlanStore,
 )
+from openclaw_ultimate.planner.verification import (
+    RuleBasedVerifier,
+    StepVerificationError,
+    VerificationResult,
+    VerificationStatus,
+)
 
 __all__ = [
     "ErrorContext",
@@ -55,12 +61,16 @@ __all__ = [
     "RetryPolicy",
     "RevisionStatus",
     "RuleBasedReflector",
+    "RuleBasedVerifier",
     "SQLitePlanStore",
     "StepStatus",
+    "StepVerificationError",
     "StructuredPlanner",
     "SuggestedAction",
     "TaskGraph",
     "TaskPlan",
+    "VerificationResult",
+    "VerificationStatus",
 ]
 from openclaw_ultimate.planner.executor import (
     PlanExecutionError,
