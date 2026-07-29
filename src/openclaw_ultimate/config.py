@@ -34,6 +34,16 @@ class Settings(BaseSettings):
 
     enable_shell_tool: bool = False
     workspace_root: Path = Field(default_factory=Path.cwd)
+    workspace_max_read_bytes: int = 1_000_000
+    workspace_max_results: int = 200
+    shell_allowed_commands: tuple[str, ...] = (
+        "git",
+        "uv",
+        "python",
+        "pytest",
+    )
+    shell_timeout: float = 30.0
+    shell_max_output_characters: int = 20_000
 
     session_db_path: Path = Path(".openclaw/sessions.db")
     history_message_limit: int = 100
@@ -117,6 +127,9 @@ class Settings(BaseSettings):
     @field_validator(
         "memory_recall_limit",
         "memory_max_context_characters",
+        "workspace_max_read_bytes",
+        "workspace_max_results",
+        "shell_max_output_characters",
     )
     @classmethod
     def validate_positive_memory_limits(
@@ -127,6 +140,30 @@ class Settings(BaseSettings):
             raise ValueError("Memory limits must be at least 1.")
 
         return value
+
+    @field_validator("shell_timeout")
+    @classmethod
+    def validate_shell_timeout(
+        cls,
+        value: float,
+    ) -> float:
+        if value <= 0:
+            raise ValueError("shell_timeout must be greater than zero.")
+
+        return value
+
+    @field_validator("shell_allowed_commands")
+    @classmethod
+    def validate_shell_allowed_commands(
+        cls,
+        value: tuple[str, ...],
+    ) -> tuple[str, ...]:
+        cleaned = tuple(command.strip() for command in value if command.strip())
+
+        if len(cleaned) != len(value):
+            raise ValueError("shell_allowed_commands cannot contain empty names.")
+
+        return cleaned
 
     @field_validator("memory_similarity_threshold")
     @classmethod
