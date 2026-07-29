@@ -80,7 +80,15 @@ class SafeCommandRunner:
                 risk=risk,
                 resource_id=fingerprint,
             )
-        creation_flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+        creation_flags = (
+            getattr(
+                subprocess,
+                "CREATE_NO_WINDOW",
+                0,
+            )
+            if os.name == "nt"
+            else 0
+        )
         process = await asyncio.create_subprocess_exec(
             command,
             *clean_arguments,

@@ -161,7 +161,7 @@ def test_api_serves_vela_ui_and_meta(tmp_path) -> None:
     assert isinstance(page.payload, bytes)
     assert b"VELA" in page.payload
     assert meta.payload["data"]["name"] == "VELA"
-    assert meta.payload["data"]["version"] == "1.0.0"
+    assert meta.payload["data"]["version"] == "1.0.1"
 
 
 def test_memory_delete_requires_and_consumes_confirmation(tmp_path) -> None:

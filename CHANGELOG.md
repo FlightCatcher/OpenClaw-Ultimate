@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1 - 2026-07-29
+
+- Fixed the governed shell runner's Windows creation flag lookup so Linux type
+  checking and release CI remain portable.
+
 ## 1.0.0 - 2026-07-29
 
 - Rebranded the local agent as VELA while preserving OCU compatibility.
