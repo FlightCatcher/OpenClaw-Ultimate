@@ -1,0 +1,15 @@
+{
+  "servers": [
+    {
+      "name": "example",
+      "enabled": false,
+      "command": [
+        "python",
+        "-m",
+        "your_mcp_server"
+      ],
+      "cwd": ".",
+      "env": {}
+    }
+  ]
+}

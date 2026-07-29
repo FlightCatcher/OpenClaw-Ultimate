@@ -1,11 +1,12 @@
-
 from __future__ import annotations
-import argparse, shutil
+
+import argparse
+import shutil
 from pathlib import Path
 from textwrap import dedent
 
 FILES = {
-"pyproject.toml": """
+    "pyproject.toml": """
 [project]
 name = "openclaw-ultimate"
 version = "0.1.0"
@@ -44,8 +45,8 @@ pythonpath = ["src"]
 line-length = 100
 target-version = "py312"
 """,
-".python-version": "3.12\n",
-".env.example": """
+    ".python-version": "3.12\n",
+    ".env.example": """
 OCU_APP_NAME=OpenClaw Ultimate
 OCU_LOG_LEVEL=INFO
 OCU_OLLAMA_BASE_URL=http://127.0.0.1:11434
@@ -53,7 +54,7 @@ OCU_OLLAMA_MODEL=qwen3:8b
 OCU_ENABLE_SHELL_TOOL=false
 OCU_WORKSPACE_ROOT=.
 """,
-"README.md": """
+    "README.md": """
 # OpenClaw Ultimate
 
 本地优先、模块化、可扩展的 AI Agent 平台。
@@ -73,8 +74,8 @@ uv run ocu chat
 
 Shell 工具默认关闭。
 """,
-"src/openclaw_ultimate/__init__.py": '__version__ = "0.1.0"\n',
-"src/openclaw_ultimate/config.py": """
+    "src/openclaw_ultimate/__init__.py": '__version__ = "0.1.0"\n',
+    "src/openclaw_ultimate/config.py": """
 from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -91,13 +92,13 @@ class Settings(BaseSettings):
 def load_settings() -> Settings:
     return Settings()
 """,
-"src/openclaw_ultimate/models/base.py": """
+    "src/openclaw_ultimate/models/base.py": """
 from typing import Protocol
 
 class ModelProvider(Protocol):
     def chat(self, user_message: str, system_prompt: str | None = None) -> str: ...
 """,
-"src/openclaw_ultimate/models/ollama_provider.py": """
+    "src/openclaw_ultimate/models/ollama_provider.py": """
 import ollama
 
 class OllamaProvider:
@@ -113,11 +114,11 @@ class OllamaProvider:
         response = self.client.chat(model=self.model, messages=messages)
         return str(response["message"]["content"])
 """,
-"src/openclaw_ultimate/models/__init__.py": """
+    "src/openclaw_ultimate/models/__init__.py": """
 from .ollama_provider import OllamaProvider
 __all__ = ["OllamaProvider"]
 """,
-"src/openclaw_ultimate/runtime.py": """
+    "src/openclaw_ultimate/runtime.py": """
 from dataclasses import dataclass
 from openclaw_ultimate.models.base import ModelProvider
 
@@ -137,7 +138,7 @@ class AgentRuntime:
             raise ValueError("User message cannot be empty.")
         return self.model.chat(message, self.system_prompt)
 """,
-"src/openclaw_ultimate/doctor.py": """
+    "src/openclaw_ultimate/doctor.py": """
 import sys, httpx
 from rich.console import Console
 from openclaw_ultimate.config import Settings
@@ -159,7 +160,7 @@ def run_doctor(settings: Settings) -> bool:
         ok = False
     return ok
 """,
-"src/openclaw_ultimate/cli.py": """
+    "src/openclaw_ultimate/cli.py": """
 import typer
 from rich.console import Console
 from openclaw_ultimate.config import load_settings
@@ -193,7 +194,7 @@ def chat() -> None:
 if __name__ == "__main__":
     app()
 """,
-"tests/test_runtime.py": """
+    "tests/test_runtime.py": """
 import pytest
 from openclaw_ultimate.runtime import AgentRuntime
 
@@ -208,7 +209,7 @@ def test_empty_input() -> None:
     with pytest.raises(ValueError):
         AgentRuntime(FakeModel()).respond(" ")
 """,
-"docs/00_SYSTEM_PHILOSOPHY.md": """
+    "docs/00_SYSTEM_PHILOSOPHY.md": """
 # 系统哲学
 
 - 本地优先
@@ -218,19 +219,19 @@ def test_empty_input() -> None:
 - 可验证
 - 可回滚
 """,
-"docs/01_ARCHITECTURE.md": """
+    "docs/01_ARCHITECTURE.md": """
 # 架构
 
 User → CLI → AgentRuntime → Ollama
 
 后续扩展 Planner、Memory、RAG、MCP、ComfyUI。
 """,
-"docs/02_AGENT_LOOP.md": """
+    "docs/02_AGENT_LOOP.md": """
 # Agent Loop
 
 输入 → 上下文构建 → 模型调用 → 结果返回 → 日志记录。
 """,
-"docs/03_HARDWARE_PROFILE.md": """
+    "docs/03_HARDWARE_PROFILE.md": """
 # Hardware Profile
 
 - Ryzen 5 3600
@@ -239,7 +240,7 @@ User → CLI → AgentRuntime → Ollama
 - Windows 11
 - Models: E:\\AI-Models
 """,
-"bootstrap.ps1": """
+    "bootstrap.ps1": """
 $ErrorActionPreference = "Stop"
 uv python pin 3.12
 if (Test-Path ".venv") { Remove-Item -Recurse -Force ".venv" }
@@ -247,7 +248,7 @@ uv sync --dev
 if (!(Test-Path ".env")) { Copy-Item ".env.example" ".env" }
 uv run ocu doctor
 """,
-"scripts/verify.ps1": """
+    "scripts/verify.ps1": """
 $ErrorActionPreference = "Stop"
 uv run ruff check .
 uv run pytest
@@ -256,12 +257,23 @@ Write-Host "All checks passed." -ForegroundColor Green
 }
 
 DIRS = [
-"assets","benchmarks","configs","docs","examples","plugins","prompts","scripts",
-"src/openclaw_ultimate/models","tests",".github/workflows"
+    "assets",
+    "benchmarks",
+    "configs",
+    "docs",
+    "examples",
+    "plugins",
+    "prompts",
+    "scripts",
+    "src/openclaw_ultimate/models",
+    "tests",
+    ".github/workflows",
 ]
+
 
 def norm(s: str) -> str:
     return dedent(s).lstrip("\n").rstrip() + "\n"
+
 
 def backup(path: Path) -> None:
     candidate = path.with_suffix(path.suffix + ".bak")
@@ -270,6 +282,7 @@ def backup(path: Path) -> None:
         candidate = path.with_suffix(path.suffix + f".bak{n}")
         n += 1
     shutil.copy2(path, candidate)
+
 
 def main() -> None:
     p = argparse.ArgumentParser()
@@ -297,6 +310,6 @@ def main() -> None:
     print("  uv run pytest")
     print("  uv run ocu chat")
 
+
 if __name__ == "__main__":
     main()
-

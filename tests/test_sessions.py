@@ -9,17 +9,15 @@ from openclaw_ultimate.core.messages import (
     ToolCall,
 )
 from openclaw_ultimate.sessions import (
-    SQLiteSessionStore,
     SessionNotFoundError,
+    SQLiteSessionStore,
 )
 
 
 def create_store(
     tmp_path: Path,
 ) -> SQLiteSessionStore:
-    return SQLiteSessionStore(
-        tmp_path / "sessions.db"
-    )
+    return SQLiteSessionStore(tmp_path / "sessions.db")
 
 
 def test_session_lifecycle(
@@ -27,9 +25,7 @@ def test_session_lifecycle(
 ) -> None:
     store = create_store(tmp_path)
 
-    session = store.create_session(
-        "测试会话"
-    )
+    session = store.create_session("测试会话")
 
     assert session.title == "测试会话"
     assert session.message_count == 0
@@ -52,9 +48,7 @@ def test_session_lifecycle(
 
     store.delete_session(session.id)
 
-    with pytest.raises(
-        SessionNotFoundError
-    ):
+    with pytest.raises(SessionNotFoundError):
         store.get_session(session.id)
 
 
@@ -82,9 +76,7 @@ def test_message_round_trip(
         Message.tool(
             name="add",
             tool_call_id="call-1",
-            content=(
-                '{"ok": true, "result": 3}'
-            ),
+            content=('{"ok": true, "result": 3}'),
         ),
         Message.assistant("结果是 3"),
     )
@@ -96,15 +88,11 @@ def test_message_round_trip(
 
     assert count == 5
 
-    loaded = store.load_messages(
-        session.id
-    )
+    loaded = store.load_messages(session.id)
 
     assert loaded == messages
 
-    updated_session = store.get_session(
-        session.id
-    )
+    updated_session = store.get_session(session.id)
 
     assert updated_session.message_count == 5
 
@@ -147,9 +135,7 @@ def test_unknown_session_raises(
 ) -> None:
     store = create_store(tmp_path)
 
-    with pytest.raises(
-        SessionNotFoundError
-    ):
+    with pytest.raises(SessionNotFoundError):
         store.load_messages("missing")
 
 

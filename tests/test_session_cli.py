@@ -9,7 +9,6 @@ from openclaw_ultimate.sessions import (
     SQLiteSessionStore,
 )
 
-
 runner = CliRunner()
 
 
@@ -17,9 +16,7 @@ def session_environment(
     db_path: Path,
 ) -> dict[str, str]:
     return {
-        "OCU_SESSION_DB_PATH": str(
-            db_path
-        ),
+        "OCU_SESSION_DB_PATH": str(db_path),
     }
 
 
@@ -27,9 +24,7 @@ def test_session_new_and_list(
     tmp_path: Path,
 ) -> None:
     db_path = tmp_path / "sessions.db"
-    environment = session_environment(
-        db_path
-    )
+    environment = session_environment(db_path)
 
     result = runner.invoke(
         app,
@@ -61,16 +56,10 @@ def test_session_show_and_rename(
     tmp_path: Path,
 ) -> None:
     db_path = tmp_path / "sessions.db"
-    environment = session_environment(
-        db_path
-    )
+    environment = session_environment(db_path)
 
-    store = SQLiteSessionStore(
-        db_path
-    )
-    session = store.create_session(
-        "旧标题"
-    )
+    store = SQLiteSessionStore(db_path)
+    session = store.create_session("旧标题")
 
     rename_result = runner.invoke(
         app,
@@ -105,16 +94,10 @@ def test_session_delete(
     tmp_path: Path,
 ) -> None:
     db_path = tmp_path / "sessions.db"
-    environment = session_environment(
-        db_path
-    )
+    environment = session_environment(db_path)
 
-    store = SQLiteSessionStore(
-        db_path
-    )
-    session = store.create_session(
-        "准备删除"
-    )
+    store = SQLiteSessionStore(db_path)
+    session = store.create_session("准备删除")
 
     result = runner.invoke(
         app,

@@ -2,8 +2,10 @@ from openclaw_ultimate.core import (
     Agent,
     AgentRuntime,
     Message,
+    ModuleRegistry,
     RuntimeLimitError,
     RuntimeResult,
+    RuntimeState,
     ToolCall,
     ToolRegistry,
 )
@@ -15,8 +17,10 @@ __all__ = [
     "Message",
     "ModelClient",
     "ModelResponse",
+    "ModuleRegistry",
     "RuntimeLimitError",
     "RuntimeResult",
+    "RuntimeState",
     "ToolCall",
     "ToolRegistry",
 ]

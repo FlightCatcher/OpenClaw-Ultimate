@@ -18,9 +18,11 @@ from typing import Any
 from openclaw_ultimate.core.messages import Message
 from openclaw_ultimate.core.runtime import (
     Agent,
-    AgentRuntime as CoreAgentRuntime,
     RuntimeLimitError,
     RuntimeResult,
+)
+from openclaw_ultimate.core.runtime import (
+    AgentRuntime as CoreAgentRuntime,
 )
 from openclaw_ultimate.models.base import ModelResponse
 
@@ -39,8 +41,7 @@ class AgentRuntime(CoreAgentRuntime):
 
         if self._legacy_model is None:
             raise RuntimeError(
-                "Legacy respond() requires a model: "
-                "AgentRuntime(model).respond(text)"
+                "Legacy respond() requires a model: AgentRuntime(model).respond(text)"
             )
 
         result = self._invoke_legacy_model(user_input)
@@ -108,11 +109,7 @@ class AgentRuntime(CoreAgentRuntime):
                 user_input,
             )
 
-        available = [
-            name
-            for name in type(model).__dict__
-            if not name.startswith("_")
-        ]
+        available = [name for name in type(model).__dict__ if not name.startswith("_")]
 
         raise TypeError(
             "Could not determine how to call the legacy model. "
@@ -128,7 +125,7 @@ class AgentRuntime(CoreAgentRuntime):
 
         try:
             return method(user_input)
-        except TypeError as positional_error:
+        except TypeError:
             for keyword in (
                 "prompt",
                 "text",
@@ -141,7 +138,7 @@ class AgentRuntime(CoreAgentRuntime):
                 except TypeError:
                     continue
 
-            raise positional_error
+            raise
 
     @staticmethod
     def _run_awaitable(awaitable: Any) -> Any:

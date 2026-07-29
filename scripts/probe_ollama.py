@@ -5,7 +5,6 @@ import asyncio
 from openclaw_ultimate import Agent, AgentRuntime
 from openclaw_ultimate.models import OpenAICompatibleModel
 
-
 BASE_URL = "http://127.0.0.1:11434/v1"
 MODEL_NAME = "qwen3:8b"
 
@@ -24,10 +23,7 @@ async def main() -> None:
     agent = Agent(
         name="ollama-agent",
         model=model,
-        system_prompt=(
-            "你是 OpenClaw-Ultimate 的本地 AI 助手。"
-            "请使用简洁、准确的中文回答。"
-        ),
+        system_prompt=("你是 OpenClaw-Ultimate 的本地 AI 助手。请使用简洁、准确的中文回答。"),
         max_steps=4,
     )
 

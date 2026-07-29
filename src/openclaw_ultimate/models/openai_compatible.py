@@ -103,21 +103,16 @@ class OpenAICompatibleModel:
             body = exc.response.text[:1000]
 
             raise ModelRequestError(
-                "Model request returned "
-                f"HTTP {exc.response.status_code}: {body}"
+                f"Model request returned HTTP {exc.response.status_code}: {body}"
             ) from exc
 
         except httpx.RequestError as exc:
-            raise ModelRequestError(
-                f"Could not connect to model endpoint: {exc}"
-            ) from exc
+            raise ModelRequestError(f"Could not connect to model endpoint: {exc}") from exc
 
         try:
             data = response.json()
         except ValueError as exc:
-            raise ModelResponseError(
-                "Model response was not valid JSON."
-            ) from exc
+            raise ModelResponseError("Model response was not valid JSON.") from exc
 
         return self._parse_response(data)
 
@@ -140,18 +135,12 @@ class OpenAICompatibleModel:
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "model": self.model,
-            "messages": [
-                self._serialize_message(message)
-                for message in messages
-            ],
+            "messages": [self._serialize_message(message) for message in messages],
             **self.extra_body,
         }
 
         if tools:
-            payload["tools"] = [
-                self._serialize_tool(tool)
-                for tool in tools
-            ]
+            payload["tools"] = [self._serialize_tool(tool) for tool in tools]
 
         if self.temperature is not None:
             payload["temperature"] = self.temperature
@@ -213,49 +202,34 @@ class OpenAICompatibleModel:
         data: Any,
     ) -> ModelResponse:
         if not isinstance(data, dict):
-            raise ModelResponseError(
-                "Model response root must be an object."
-            )
+            raise ModelResponseError("Model response root must be an object.")
 
         choices = data.get("choices")
 
         if not isinstance(choices, list) or not choices:
-            raise ModelResponseError(
-                "Model response does not contain any choices."
-            )
+            raise ModelResponseError("Model response does not contain any choices.")
 
         first_choice = choices[0]
 
         if not isinstance(first_choice, dict):
-            raise ModelResponseError(
-                "Model response choice must be an object."
-            )
+            raise ModelResponseError("Model response choice must be an object.")
 
         message = first_choice.get("message")
 
         if not isinstance(message, dict):
-            raise ModelResponseError(
-                "Model response choice has no message."
-            )
+            raise ModelResponseError("Model response choice has no message.")
 
         content = message.get("content")
 
         if content is not None and not isinstance(content, str):
-            raise ModelResponseError(
-                "Model response content must be a string or null."
-            )
+            raise ModelResponseError("Model response content must be a string or null.")
 
         raw_tool_calls = message.get("tool_calls") or []
 
         if not isinstance(raw_tool_calls, list):
-            raise ModelResponseError(
-                "Model tool_calls must be a list."
-            )
+            raise ModelResponseError("Model tool_calls must be a list.")
 
-        tool_calls = tuple(
-            cls._parse_tool_call(raw_tool_call)
-            for raw_tool_call in raw_tool_calls
-        )
+        tool_calls = tuple(cls._parse_tool_call(raw_tool_call) for raw_tool_call in raw_tool_calls)
 
         return ModelResponse(
             content=content,
@@ -267,55 +241,39 @@ class OpenAICompatibleModel:
         raw_tool_call: Any,
     ) -> ToolCall:
         if not isinstance(raw_tool_call, dict):
-            raise ModelResponseError(
-                "Tool call must be an object."
-            )
+            raise ModelResponseError("Tool call must be an object.")
 
         call_id = raw_tool_call.get("id")
         function = raw_tool_call.get("function")
 
         if not isinstance(call_id, str) or not call_id:
-            raise ModelResponseError(
-                "Tool call does not contain a valid id."
-            )
+            raise ModelResponseError("Tool call does not contain a valid id.")
 
         if not isinstance(function, dict):
-            raise ModelResponseError(
-                "Tool call does not contain a function object."
-            )
+            raise ModelResponseError("Tool call does not contain a function object.")
 
         name = function.get("name")
         raw_arguments = function.get("arguments", "{}")
 
         if not isinstance(name, str) or not name:
-            raise ModelResponseError(
-                "Tool call does not contain a valid function name."
-            )
+            raise ModelResponseError("Tool call does not contain a valid function name.")
 
         if isinstance(raw_arguments, dict):
             arguments = raw_arguments
 
         elif isinstance(raw_arguments, str):
             try:
-                parsed_arguments = json.loads(
-                    raw_arguments or "{}"
-                )
+                parsed_arguments = json.loads(raw_arguments or "{}")
             except json.JSONDecodeError as exc:
-                raise ModelResponseError(
-                    f"Tool '{name}' returned invalid JSON arguments."
-                ) from exc
+                raise ModelResponseError(f"Tool '{name}' returned invalid JSON arguments.") from exc
 
             if not isinstance(parsed_arguments, dict):
-                raise ModelResponseError(
-                    f"Tool '{name}' arguments must decode to an object."
-                )
+                raise ModelResponseError(f"Tool '{name}' arguments must decode to an object.")
 
             arguments = parsed_arguments
 
         else:
-            raise ModelResponseError(
-                f"Tool '{name}' arguments must be JSON text or an object."
-            )
+            raise ModelResponseError(f"Tool '{name}' arguments must be JSON text or an object.")
 
         return ToolCall(
             id=call_id,

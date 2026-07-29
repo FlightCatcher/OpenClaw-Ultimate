@@ -20,9 +20,7 @@ def test_complete_parses_text_response() -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured["url"] = str(request.url)
-        captured["authorization"] = request.headers.get(
-            "Authorization"
-        )
+        captured["authorization"] = request.headers.get("Authorization")
         captured["payload"] = json.loads(request.content)
 
         return httpx.Response(
@@ -45,9 +43,7 @@ def test_complete_parses_text_response() -> None:
     transport = httpx.MockTransport(handler)
 
     async def run_test():
-        async with httpx.AsyncClient(
-            transport=transport
-        ) as client:
+        async with httpx.AsyncClient(transport=transport) as client:
             model = OpenAICompatibleModel(
                 model="local-model",
                 base_url="http://testserver/v1",
@@ -69,9 +65,7 @@ def test_complete_parses_text_response() -> None:
     assert result.content == "你好，我是本地模型。"
     assert result.tool_calls == ()
 
-    assert captured["url"] == (
-        "http://testserver/v1/chat/completions"
-    )
+    assert captured["url"] == ("http://testserver/v1/chat/completions")
     assert captured["authorization"] == "Bearer test-key"
 
     payload = captured["payload"]
@@ -89,9 +83,7 @@ def test_complete_serializes_tools_and_parses_tool_call() -> None:
     captured_payload: dict[str, object] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
-        captured_payload.update(
-            json.loads(request.content)
-        )
+        captured_payload.update(json.loads(request.content))
 
         return httpx.Response(
             200,
@@ -107,9 +99,7 @@ def test_complete_serializes_tools_and_parses_tool_call() -> None:
                                     "type": "function",
                                     "function": {
                                         "name": "add",
-                                        "arguments": (
-                                            '{"a": 10, "b": 20}'
-                                        ),
+                                        "arguments": ('{"a": 10, "b": 20}'),
                                     },
                                 }
                             ],
@@ -122,9 +112,7 @@ def test_complete_serializes_tools_and_parses_tool_call() -> None:
     transport = httpx.MockTransport(handler)
 
     async def run_test():
-        async with httpx.AsyncClient(
-            transport=transport
-        ) as client:
+        async with httpx.AsyncClient(transport=transport) as client:
             model = OpenAICompatibleModel(
                 model="tool-model",
                 base_url="http://testserver/v1",
@@ -177,9 +165,7 @@ def test_complete_raises_for_http_error() -> None:
     transport = httpx.MockTransport(handler)
 
     async def run_test():
-        async with httpx.AsyncClient(
-            transport=transport
-        ) as client:
+        async with httpx.AsyncClient(transport=transport) as client:
             model = OpenAICompatibleModel(
                 model="broken-model",
                 base_url="http://testserver/v1",
@@ -227,9 +213,7 @@ def test_complete_rejects_invalid_tool_arguments() -> None:
     transport = httpx.MockTransport(handler)
 
     async def run_test():
-        async with httpx.AsyncClient(
-            transport=transport
-        ) as client:
+        async with httpx.AsyncClient(transport=transport) as client:
             model = OpenAICompatibleModel(
                 model="bad-tool-model",
                 base_url="http://testserver/v1",

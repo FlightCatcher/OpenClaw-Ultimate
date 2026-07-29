@@ -7,6 +7,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from openclaw_ultimate.api import LocalApiServer
 from openclaw_ultimate.app import build_default_agent
 from openclaw_ultimate.config import Settings, load_settings
 from openclaw_ultimate.context import (
@@ -18,25 +19,39 @@ from openclaw_ultimate.core.runtime import (
     Agent,
     AgentRuntime,
 )
+from openclaw_ultimate.diagnostics import (
+    collect_diagnostics,
+)
 from openclaw_ultimate.doctor import run_doctor
+from openclaw_ultimate.knowledge_cli import knowledge_app
 from openclaw_ultimate.memory import (
     ConversationSummarizer,
     LongTermMemory,
     RollingSummaryContextManager,
     SQLiteMemoryStore,
 )
+from openclaw_ultimate.model_cli import model_app
 from openclaw_ultimate.models import (
     OpenAICompatibleEmbeddingModel,
 )
+from openclaw_ultimate.openclaw_cli import openclaw_app
 from openclaw_ultimate.planner import (
+    ErrorContext,
     PlanExecutionError,
     PlanExecutor,
     PlanNotFoundError,
+    PlanRevision,
+    ReflectionEngine,
+    ReflectionResult,
+    ReplanningEngine,
+    RetryAttempt,
     SQLitePlanStore,
+    StepStatus,
     StructuredPlanner,
     TaskGraph,
     TaskPlan,
 )
+from openclaw_ultimate.planner.models import PlanStep
 from openclaw_ultimate.sessions import (
     SessionNotFoundError,
     SQLiteSessionStore,
@@ -73,6 +88,18 @@ app.add_typer(
     plan_app,
     name="plan",
 )
+app.add_typer(
+    openclaw_app,
+    name="openclaw",
+)
+app.add_typer(
+    model_app,
+    name="model",
+)
+app.add_typer(
+    knowledge_app,
+    name="knowledge",
+)
 
 console = Console()
 
@@ -82,6 +109,70 @@ def doctor() -> None:
     """检查 OpenClaw-Ultimate 的运行环境。"""
 
     raise typer.Exit(code=0 if run_doctor(load_settings()) else 1)
+
+
+@app.command("status")
+def unified_status() -> None:
+    """显示 OCU、OpenClaw、模型、知识库和工具后端状态。"""
+
+    report = asyncio.run(collect_diagnostics(load_settings()))
+    table = Table(title=f"OCU 系统状态：{report.state.value}")
+    table.add_column("组件")
+    table.add_column("状态")
+    table.add_column("详情")
+    table.add_column("必需")
+
+    for component in report.components:
+        table.add_row(
+            component.name,
+            component.state.value,
+            component.detail,
+            "是" if component.required else "否",
+        )
+
+    console.print(table)
+    raise typer.Exit(code=0 if report.ready else 1)
+
+
+@app.command()
+def serve(
+    host: str | None = typer.Option(
+        None,
+        "--host",
+        help="监听地址；默认只允许 127.0.0.1",
+    ),
+    port: int | None = typer.Option(
+        None,
+        "--port",
+        min=0,
+        max=65535,
+        help="监听端口",
+    ),
+) -> None:
+    """启动 OCU 本地 JSON API。"""
+
+    settings = load_settings()
+    updates: dict[str, object] = {}
+
+    if host is not None:
+        updates["api_host"] = host
+
+    if port is not None:
+        updates["api_port"] = port
+
+    if updates:
+        settings = settings.model_copy(update=updates)
+
+    server = LocalApiServer(settings)
+    address = server.address
+    console.print(f"[green]OCU API 已启动：[/green]http://{address[0]}:{address[1]}")
+
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        console.print("\n[yellow]OCU API 已停止。[/yellow]")
+    finally:
+        server.shutdown()
 
 
 @app.command()
@@ -278,7 +369,7 @@ async def _chat_async(
 
             console.print(f"[magenta]AI>[/magenta] {result.output}")
 
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - CLI must render unexpected runtime errors
             console.print(f"[red]错误：{exc}[/red]")
 
     console.print(f"[dim]会话已保存：{session.id}[/dim]")
@@ -888,6 +979,140 @@ def plan_show(
         raise typer.Exit(code=1) from exc
 
     _print_plan(plan)
+    store = _get_plan_store()
+    _print_reflections(store.list_reflections(plan_id=plan.id))
+    _print_retry_attempts(
+        store.list_retry_attempts_for_plan(plan_id=plan.id),
+    )
+    _print_revisions(store.list_revisions(plan_id=plan.id))
+
+
+@plan_app.command("reflect")
+def plan_reflect(
+    plan_id: str = typer.Argument(...),
+) -> None:
+    """分析计划中的失败步骤并持久化 Reflection，不执行任何恢复动作。"""
+
+    store = _get_plan_store()
+    try:
+        plan = store.get(plan_id)
+    except PlanNotFoundError as exc:
+        console.print(f"[red]计划不存在：{plan_id}[/red]")
+        raise typer.Exit(code=1) from exc
+
+    failed_steps = tuple(step for step in plan.steps if step.status == StepStatus.FAILED)
+    if not failed_steps:
+        console.print("[yellow]计划中没有失败步骤，无需 Reflection。[/yellow]")
+        return
+
+    engine = ReflectionEngine()
+    reflections = []
+    for step in failed_steps:
+        reflection = engine.reflect(
+            plan=plan,
+            failed_step=step,
+            error_context=ErrorContext(
+                error_type=(step.error or "UnknownError").split(":", 1)[0],
+                error_message=step.error or "Unknown error",
+                tool_name=step.tool_hint,
+                input_summary=step.description,
+            ),
+        )
+        store.save_reflection(reflection)
+        reflections.append(reflection)
+
+    _print_reflections(tuple(reflections))
+
+
+@plan_app.command("revise")
+def plan_revise(
+    plan_id: str = typer.Argument(...),
+    step_id: str | None = typer.Option(None, "--step-id"),
+    description: str | None = typer.Option(None, "--description"),
+    tool: str | None = typer.Option(None, "--tool"),
+) -> None:
+    """根据最近 Reflection 生成候选修订，不修改原计划。"""
+
+    store = _get_plan_store()
+    try:
+        plan = store.get(plan_id)
+    except PlanNotFoundError as exc:
+        console.print(f"[red]计划不存在：{plan_id}[/red]")
+        raise typer.Exit(code=1) from exc
+
+    reflections = store.list_reflections(plan_id=plan.id)
+    if not reflections:
+        console.print("[yellow]没有 Reflection，无法生成候选修订。[/yellow]")
+        return
+
+    latest_by_step = {reflection.step_id: reflection for reflection in reflections}
+    engine = ReplanningEngine()
+    existing = store.list_revisions(plan_id=plan.id)
+    next_number = len(existing) + 1
+    revisions = []
+
+    for reflection in latest_by_step.values():
+        proposed_step = None
+        if step_id == reflection.step_id and description:
+            original_step = next(step for step in plan.steps if step.id == reflection.step_id)
+            proposed_step = PlanStep(
+                id=original_step.id,
+                title=original_step.title,
+                description=description,
+                dependencies=original_step.dependencies,
+                tool_hint=tool if tool is not None else original_step.tool_hint,
+            )
+        try:
+            revision = engine.propose(
+                plan=plan,
+                reflection=reflection,
+                revision_number=next_number,
+                proposed_step=proposed_step,
+            )
+        except ValueError:
+            continue
+        store.save_revision(revision)
+        revisions.append(revision)
+        next_number += 1
+
+    if not revisions:
+        console.print("[yellow]最近的 Reflection 不需要候选修订。[/yellow]")
+        return
+
+    _print_revisions(tuple(revisions))
+
+
+@plan_app.command("apply")
+def plan_apply(
+    revision_id: str = typer.Argument(...),
+    yes: bool = typer.Option(False, "--yes", "-y"),
+) -> None:
+    """批准候选修订并创建新的计划版本，不覆盖父计划。"""
+
+    store = _get_plan_store()
+    try:
+        revision = store.get_revision(revision_id)
+        parent = store.get(revision.parent_plan_id)
+    except PlanNotFoundError as exc:
+        console.print(f"[red]修订或父计划不存在：{revision_id}[/red]")
+        raise typer.Exit(code=1) from exc
+
+    if revision.proposed_step is None:
+        console.print("[red]该修订没有明确的候选步骤，不能应用。[/red]")
+        raise typer.Exit(code=1)
+
+    if not yes and not typer.confirm(
+        f"确认生成父计划 {parent.id} 的新版本吗？修订步骤：{revision.step_id}"
+    ):
+        raise typer.Abort()
+
+    child = ReplanningEngine().apply(plan=parent, revision=revision)
+    store.save(child)
+    store.update_revision_applied(
+        revision_id=revision.revision_id,
+        child_plan_id=child.id,
+    )
+    console.print(f"[green]新计划版本已创建：{child.id}[/green]")
 
 
 @plan_app.command("delete")
@@ -991,6 +1216,71 @@ def _print_plan(plan: TaskPlan) -> None:
 
         if step.error:
             console.print(f"[red]{step.id} 错误：[/red]{step.error}")
+
+
+def _print_reflections(reflections: Sequence[ReflectionResult]) -> None:
+    if not reflections:
+        return
+
+    table = Table(title="Reflection")
+    table.add_column("步骤", style="cyan")
+    table.add_column("失败分类")
+    table.add_column("可重试")
+    table.add_column("建议")
+    table.add_column("根因", overflow="fold")
+
+    for reflection in reflections:
+        table.add_row(
+            reflection.step_id,
+            reflection.failure_type.value,
+            "是" if reflection.retryable else "否",
+            reflection.suggested_action.value,
+            reflection.root_cause,
+        )
+
+    console.print(table)
+
+
+def _print_retry_attempts(attempts: Sequence[RetryAttempt]) -> None:
+    if not attempts:
+        return
+
+    table = Table(title="自动重试记录")
+    table.add_column("步骤", style="cyan")
+    table.add_column("次数", justify="right")
+    table.add_column("已安排")
+    table.add_column("错误")
+
+    for attempt in attempts:
+        table.add_row(
+            attempt.step_id,
+            str(attempt.attempt_number),
+            "是" if attempt.scheduled else "否",
+            f"{attempt.error_type}: {attempt.error_message}",
+        )
+
+    console.print(table)
+
+
+def _print_revisions(revisions: Sequence[PlanRevision]) -> None:
+    if not revisions:
+        return
+
+    table = Table(title="候选计划修订")
+    table.add_column("修订", style="cyan")
+    table.add_column("步骤")
+    table.add_column("状态")
+    table.add_column("建议变更", overflow="fold")
+
+    for revision in revisions:
+        table.add_row(
+            str(revision.revision_number),
+            revision.step_id,
+            revision.status.value,
+            "；".join(revision.suggested_changes),
+        )
+
+    console.print(table)
 
 
 if __name__ == "__main__":

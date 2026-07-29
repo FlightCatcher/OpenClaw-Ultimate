@@ -6,7 +6,6 @@ import json
 from openclaw_ultimate import Agent, AgentRuntime
 from openclaw_ultimate.models import OpenAICompatibleModel
 
-
 BASE_URL = "http://127.0.0.1:11434/v1"
 MODEL_NAME = "qwen3:8b"
 
@@ -101,14 +100,10 @@ async def main() -> None:
             print(f"    tool_call_id={message.tool_call_id}")
 
     if not tool_called:
-        raise RuntimeError(
-            "模型完成了回答，但没有调用 add 工具。"
-        )
+        raise RuntimeError("模型完成了回答，但没有调用 add 工具。")
 
     if result.steps < 2:
-        raise RuntimeError(
-            "工具调用流程应该至少运行两个步骤。"
-        )
+        raise RuntimeError("工具调用流程应该至少运行两个步骤。")
 
     print()
     print("状态：真实工具调用成功")

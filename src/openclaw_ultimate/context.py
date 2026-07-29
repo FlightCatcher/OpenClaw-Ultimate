@@ -34,16 +34,10 @@ def estimate_text_tokens(
     if not text:
         return 0
 
-    cjk_count = sum(
-        1
-        for character in text
-        if _is_cjk(character)
-    )
+    cjk_count = sum(1 for character in text if _is_cjk(character))
     other_count = len(text) - cjk_count
 
-    return cjk_count + math.ceil(
-        other_count / 4
-    )
+    return cjk_count + math.ceil(other_count / 4)
 
 
 def estimate_message_tokens(
@@ -53,27 +47,15 @@ def estimate_message_tokens(
 
     token_count = 4
 
-    token_count += estimate_text_tokens(
-        message.role
-    )
-    token_count += estimate_text_tokens(
-        message.content
-    )
-    token_count += estimate_text_tokens(
-        message.name
-    )
-    token_count += estimate_text_tokens(
-        message.tool_call_id
-    )
+    token_count += estimate_text_tokens(message.role)
+    token_count += estimate_text_tokens(message.content)
+    token_count += estimate_text_tokens(message.name)
+    token_count += estimate_text_tokens(message.tool_call_id)
 
     for tool_call in message.tool_calls:
         token_count += 6
-        token_count += estimate_text_tokens(
-            tool_call.id
-        )
-        token_count += estimate_text_tokens(
-            tool_call.name
-        )
+        token_count += estimate_text_tokens(tool_call.id)
+        token_count += estimate_text_tokens(tool_call.name)
         token_count += estimate_text_tokens(
             json.dumps(
                 dict(tool_call.arguments),
@@ -90,10 +72,7 @@ def estimate_messages_tokens(
 ) -> int:
     """估算一组消息的 Token 总量。"""
 
-    return sum(
-        estimate_message_tokens(message)
-        for message in messages
-    )
+    return sum(estimate_message_tokens(message) for message in messages)
 
 
 class ContextWindowBuilder:
@@ -114,32 +93,20 @@ class ContextWindowBuilder:
         response_reserve_tokens: int = 2048,
     ) -> None:
         if max_tokens < 1:
-            raise ValueError(
-                "max_tokens must be at least 1."
-            )
+            raise ValueError("max_tokens must be at least 1.")
 
         if response_reserve_tokens < 0:
-            raise ValueError(
-                "response_reserve_tokens cannot be negative."
-            )
+            raise ValueError("response_reserve_tokens cannot be negative.")
 
         if response_reserve_tokens >= max_tokens:
-            raise ValueError(
-                "response_reserve_tokens must be smaller "
-                "than max_tokens."
-            )
+            raise ValueError("response_reserve_tokens must be smaller than max_tokens.")
 
         self.max_tokens = max_tokens
-        self.response_reserve_tokens = (
-            response_reserve_tokens
-        )
+        self.response_reserve_tokens = response_reserve_tokens
 
     @property
     def max_input_tokens(self) -> int:
-        return (
-            self.max_tokens
-            - self.response_reserve_tokens
-        )
+        return self.max_tokens - self.response_reserve_tokens
 
     def build(
         self,
@@ -157,46 +124,24 @@ class ContextWindowBuilder:
                 max_input_tokens=self.max_input_tokens,
             )
 
-        system_message, remaining = (
-            self._extract_system_message(items)
-        )
+        system_message, remaining = self._extract_system_message(items)
 
-        pinned_messages = (
-            (system_message,)
-            if system_message is not None
-            else ()
-        )
+        pinned_messages = (system_message,) if system_message is not None else ()
 
-        pinned_tokens = (
-            estimate_messages_tokens(
-                pinned_messages
-            )
-        )
+        pinned_tokens = estimate_messages_tokens(pinned_messages)
 
         if pinned_tokens > self.max_input_tokens:
-            raise ContextBudgetError(
-                "System message exceeds the available "
-                "input token budget."
-            )
+            raise ContextBudgetError("System message exceeds the available input token budget.")
 
-        blocks = self._group_into_turns(
-            remaining
-        )
+        blocks = self._group_into_turns(remaining)
 
-        selected_reversed: list[
-            tuple[Message, ...]
-        ] = []
+        selected_reversed: list[tuple[Message, ...]] = []
         current_tokens = pinned_tokens
 
         for block in reversed(blocks):
-            block_tokens = (
-                estimate_messages_tokens(block)
-            )
+            block_tokens = estimate_messages_tokens(block)
 
-            if (
-                current_tokens + block_tokens
-                > self.max_input_tokens
-            ):
+            if current_tokens + block_tokens > self.max_input_tokens:
                 # 只保留连续的最近历史，
                 # 不跳过中间轮次去选择更旧的内容。
                 break
@@ -204,26 +149,16 @@ class ContextWindowBuilder:
             selected_reversed.append(block)
             current_tokens += block_tokens
 
-        selected_blocks = reversed(
-            selected_reversed
-        )
+        selected_blocks = reversed(selected_reversed)
 
-        selected_messages = (
-            pinned_messages
-            + tuple(
-                message
-                for block in selected_blocks
-                for message in block
-            )
+        selected_messages = pinned_messages + tuple(
+            message for block in selected_blocks for message in block
         )
 
         return ContextSelection(
             messages=selected_messages,
             estimated_tokens=current_tokens,
-            dropped_messages=(
-                len(items)
-                - len(selected_messages)
-            ),
+            dropped_messages=(len(items) - len(selected_messages)),
             max_input_tokens=self.max_input_tokens,
         )
 
@@ -236,14 +171,11 @@ class ContextWindowBuilder:
     ]:
         """取出第一条 system 消息并放到上下文首位。"""
 
-        for index, message in enumerate(
-            messages
-        ):
+        for index, message in enumerate(messages):
             if message.role == "system":
                 return (
                     message,
-                    tuple(messages[:index])
-                    + tuple(messages[index + 1:]),
+                    tuple(messages[:index]) + tuple(messages[index + 1 :]),
                 )
 
         return None, tuple(messages)
@@ -260,16 +192,11 @@ class ContextWindowBuilder:
         if not messages:
             return ()
 
-        blocks: list[
-            tuple[Message, ...]
-        ] = []
+        blocks: list[tuple[Message, ...]] = []
         current: list[Message] = []
 
         for message in messages:
-            if (
-                message.role == "user"
-                and current
-            ):
+            if message.role == "user" and current:
                 blocks.append(tuple(current))
                 current = [message]
             else:

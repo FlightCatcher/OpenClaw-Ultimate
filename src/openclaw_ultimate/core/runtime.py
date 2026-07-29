@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Any, Iterable
+from enum import StrEnum
+from typing import Any
 
 from openclaw_ultimate.core.messages import Message
 from openclaw_ultimate.core.tools import ToolRegistry
@@ -11,6 +13,13 @@ from openclaw_ultimate.models.base import ModelClient
 
 class RuntimeLimitError(RuntimeError):
     """Agent 在规定步骤内没有完成任务。"""
+
+
+class RuntimeState(StrEnum):
+    IDLE = "idle"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
 
 
 @dataclass(slots=True)
@@ -43,7 +52,39 @@ class RuntimeResult:
 class AgentRuntime:
     """负责执行模型响应、工具调用和消息循环。"""
 
+    def __init__(self) -> None:
+        self._state = RuntimeState.IDLE
+        self._last_error: str | None = None
+
+    @property
+    def state(self) -> RuntimeState:
+        return self._state
+
+    @property
+    def last_error(self) -> str | None:
+        return self._last_error
+
     async def run(
+        self,
+        agent: Agent,
+        user_input: str,
+        *,
+        history: Iterable[Message] = (),
+    ) -> RuntimeResult:
+        self._state = RuntimeState.RUNNING
+        self._last_error = None
+        try:
+            return await self._run(
+                agent,
+                user_input,
+                history=history,
+            )
+        except Exception as exc:
+            self._state = RuntimeState.FAILED
+            self._last_error = f"{type(exc).__name__}: {exc}"
+            raise
+
+    async def _run(
         self,
         agent: Agent,
         user_input: str,
@@ -73,11 +114,13 @@ class AgentRuntime:
             messages.append(assistant_message)
 
             if not response.tool_calls:
-                return RuntimeResult(
+                result = RuntimeResult(
                     output=response.content or "",
                     messages=tuple(messages),
                     steps=step,
                 )
+                self._state = RuntimeState.COMPLETED
+                return result
 
             for tool_call in response.tool_calls:
                 tool_result = await self._execute_tool_call(
@@ -95,8 +138,7 @@ class AgentRuntime:
                 )
 
         raise RuntimeLimitError(
-            f"Agent '{agent.name}' exceeded "
-            f"the maximum of {agent.max_steps} steps."
+            f"Agent '{agent.name}' exceeded the maximum of {agent.max_steps} steps."
         )
 
     async def _execute_tool_call(
@@ -125,7 +167,7 @@ class AgentRuntime:
                 }
             )
 
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - tool errors become model-visible results
             return self._json_dump(
                 {
                     "ok": False,

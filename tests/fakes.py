@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import deque
-from typing import Iterable, Sequence
+from collections.abc import Iterable, Sequence
 
 from openclaw_ultimate.core.messages import Message
 from openclaw_ultimate.core.tools import ToolDefinition

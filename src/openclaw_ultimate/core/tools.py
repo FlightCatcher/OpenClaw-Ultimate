@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import inspect
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any, Callable, Mapping
-
+from typing import Any
 
 ToolHandler = Callable[..., Any]
 
@@ -72,10 +72,7 @@ class ToolRegistry:
             raise KeyError(f"Unknown tool: {name}") from exc
 
     def definitions(self) -> tuple[ToolDefinition, ...]:
-        return tuple(
-            tool.definition
-            for tool in self._tools.values()
-        )
+        return tuple(tool.definition for tool in self._tools.values())
 
     def __contains__(self, name: str) -> bool:
         return name in self._tools

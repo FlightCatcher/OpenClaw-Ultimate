@@ -242,3 +242,9 @@ venv/
 
 # Local session database
 .openclaw/
+
+# Local acceptance artifacts
+work/*.db
+
+# Node.js plugin dependencies
+node_modules/

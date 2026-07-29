@@ -1,0 +1,44 @@
+{
+  "id": "openclaw-ultimate",
+  "name": "OpenClaw Ultimate",
+  "description": "Adds OCU planning, DAG execution and reflection to OpenClaw.",
+  "version": "0.1.0",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "ocu_plan",
+      "ocu_knowledge"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "projectRoot": {
+        "type": "string",
+        "description": "Absolute path to the OpenClaw-Ultimate repository."
+      },
+      "uvCommand": {
+        "type": "string",
+        "default": "uv"
+      },
+      "timeoutMs": {
+        "type": "integer",
+        "minimum": 1000,
+        "maximum": 1800000,
+        "default": 600000
+      }
+    }
+  },
+  "uiHints": {
+    "projectRoot": {
+      "label": "OCU project root",
+      "placeholder": "E:\\Projects\\OpenClaw-Ultimate"
+    },
+    "timeoutMs": {
+      "label": "Execution timeout (ms)"
+    }
+  }
+}

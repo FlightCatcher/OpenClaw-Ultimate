@@ -95,11 +95,7 @@ def test_runtime_executes_tool_and_continues_model_loop() -> None:
     assert result.steps == 2
     assert len(model.calls) == 2
 
-    tool_messages = [
-        message
-        for message in result.messages
-        if message.role == "tool"
-    ]
+    tool_messages = [message for message in result.messages if message.role == "tool"]
 
     assert len(tool_messages) == 1
 
@@ -141,11 +137,7 @@ def test_runtime_returns_tool_error_to_model() -> None:
         )
     )
 
-    tool_message = next(
-        message
-        for message in result.messages
-        if message.role == "tool"
-    )
+    tool_message = next(message for message in result.messages if message.role == "tool")
 
     payload = json.loads(tool_message.content or "{}")
 

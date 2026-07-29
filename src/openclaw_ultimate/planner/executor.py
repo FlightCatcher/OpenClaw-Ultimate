@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from openclaw_ultimate.core.runtime import (
@@ -13,9 +14,11 @@ from openclaw_ultimate.planner.models import (
     StepStatus,
     TaskPlan,
 )
-from openclaw_ultimate.planner.store import (
-    SQLitePlanStore,
-)
+from openclaw_ultimate.planner.reflection import ErrorContext, ReflectionEngine
+from openclaw_ultimate.planner.retry import RetryPolicy
+from openclaw_ultimate.planner.store import SQLitePlanStore
+
+logger = logging.getLogger(__name__)
 
 
 class PlanExecutionError(RuntimeError):
@@ -37,9 +40,13 @@ class PlanExecutor:
         *,
         runtime: AgentRuntime | None = None,
         stop_on_failure: bool = True,
+        reflection_engine: ReflectionEngine | None = None,
+        retry_policy: RetryPolicy | None = None,
     ) -> None:
         self.runtime = runtime or AgentRuntime()
         self.stop_on_failure = stop_on_failure
+        self.reflection_engine = reflection_engine or ReflectionEngine()
+        self.retry_policy = retry_policy or RetryPolicy()
 
     async def execute(
         self,
@@ -82,7 +89,7 @@ class PlanExecutor:
                             step,
                         ),
                     )
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001 - executor must persist any agent failure
                     current = self._replace_step(
                         current,
                         step.with_status(
@@ -92,6 +99,50 @@ class PlanExecutor:
                     )
                     current = current.with_status(PlanStatus.FAILED)
                     store.save(current)
+
+                    reflection = None
+                    try:
+                        reflection = self.reflection_engine.reflect(
+                            plan=current,
+                            failed_step=next(
+                                candidate for candidate in current.steps if candidate.id == step.id
+                            ),
+                            error_context=ErrorContext(
+                                error_type=type(exc).__name__,
+                                error_message=str(exc),
+                                tool_name=step.tool_hint,
+                                input_summary=step.description,
+                            ),
+                        )
+                        store.save_reflection(reflection)
+                    except Exception:
+                        # Reflection is diagnostic only; never replace the original failure.
+                        logger.exception(
+                            "Reflection failed for plan %s step %s", current.id, step.id
+                        )
+
+                    if reflection is not None:
+                        previous_attempts = store.list_retry_attempts(
+                            plan_id=current.id,
+                            step_id=step.id,
+                        )
+                        decision = self.retry_policy.decide(
+                            reflection=reflection,
+                            previous_attempts=previous_attempts,
+                        )
+                        attempt = self.retry_policy.create_attempt(
+                            reflection=reflection,
+                            decision=decision,
+                        )
+                        store.save_retry_attempt(attempt)
+
+                        if decision.allowed:
+                            current = self._replace_step(
+                                current.with_status(PlanStatus.RUNNING),
+                                step.with_status(StepStatus.PENDING),
+                            )
+                            store.save(current)
+                            continue
 
                     if self.stop_on_failure:
                         return PlanExecutionResult(

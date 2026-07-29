@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Protocol, Sequence
+from typing import Protocol
 
 from openclaw_ultimate.core.messages import Message, ToolCall
 from openclaw_ultimate.core.tools import ToolDefinition
@@ -22,8 +23,7 @@ class ModelClient(Protocol):
         self,
         messages: Sequence[Message],
         tools: Sequence[ToolDefinition],
-    ) -> ModelResponse:
-        ...
+    ) -> ModelResponse: ...
 
 
 # 兼容早期版本的名称。

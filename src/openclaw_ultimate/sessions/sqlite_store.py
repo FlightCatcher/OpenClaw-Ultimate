@@ -4,9 +4,9 @@ import json
 import sqlite3
 from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 from uuid import uuid4
 
 from openclaw_ultimate.core.messages import (
@@ -51,9 +51,7 @@ class SQLiteSessionStore:
             timeout=30,
         )
         connection.row_factory = sqlite3.Row
-        connection.execute(
-            "PRAGMA foreign_keys = ON"
-        )
+        connection.execute("PRAGMA foreign_keys = ON")
 
         try:
             yield connection
@@ -68,12 +66,8 @@ class SQLiteSessionStore:
         """创建数据库表和索引。"""
 
         with self._connection() as connection:
-            connection.execute(
-                "PRAGMA journal_mode = WAL"
-            )
-            connection.execute(
-                "PRAGMA synchronous = NORMAL"
-            )
+            connection.execute("PRAGMA journal_mode = WAL")
+            connection.execute("PRAGMA synchronous = NORMAL")
 
             connection.executescript(
                 """
@@ -181,9 +175,7 @@ class SQLiteSessionStore:
             ).fetchone()
 
         if row is None:
-            raise SessionNotFoundError(
-                f"Session not found: {session_id}"
-            )
+            raise SessionNotFoundError(f"Session not found: {session_id}")
 
         return self._row_to_session(row)
 
@@ -195,9 +187,7 @@ class SQLiteSessionStore:
         """按照最近更新时间列出会话。"""
 
         if limit < 1:
-            raise ValueError(
-                "limit must be at least 1."
-            )
+            raise ValueError("limit must be at least 1.")
 
         with self._connection() as connection:
             rows = connection.execute(
@@ -219,10 +209,7 @@ class SQLiteSessionStore:
                 (limit,),
             ).fetchall()
 
-        return tuple(
-            self._row_to_session(row)
-            for row in rows
-        )
+        return tuple(self._row_to_session(row) for row in rows)
 
     def rename_session(
         self,
@@ -249,9 +236,7 @@ class SQLiteSessionStore:
             )
 
         if cursor.rowcount == 0:
-            raise SessionNotFoundError(
-                f"Session not found: {session_id}"
-            )
+            raise SessionNotFoundError(f"Session not found: {session_id}")
 
         return self.get_session(session_id)
 
@@ -271,9 +256,7 @@ class SQLiteSessionStore:
             )
 
         if cursor.rowcount == 0:
-            raise SessionNotFoundError(
-                f"Session not found: {session_id}"
-            )
+            raise SessionNotFoundError(f"Session not found: {session_id}")
 
     def append_messages(
         self,
@@ -300,9 +283,7 @@ class SQLiteSessionStore:
             ).fetchone()
 
             if session_exists is None:
-                raise SessionNotFoundError(
-                    f"Session not found: {session_id}"
-                )
+                raise SessionNotFoundError(f"Session not found: {session_id}")
 
             connection.executemany(
                 """
@@ -324,9 +305,7 @@ class SQLiteSessionStore:
                         message.content,
                         message.name,
                         message.tool_call_id,
-                        self._serialize_tool_calls(
-                            message.tool_calls
-                        ),
+                        self._serialize_tool_calls(message.tool_calls),
                         now,
                     )
                     for message in message_items
@@ -362,9 +341,7 @@ class SQLiteSessionStore:
         self.get_session(session_id)
 
         if limit is not None and limit < 1:
-            raise ValueError(
-                "limit must be at least 1."
-            )
+            raise ValueError("limit must be at least 1.")
 
         with self._connection() as connection:
             if limit is None:
@@ -405,26 +382,14 @@ class SQLiteSessionStore:
                     ),
                 ).fetchall()
 
-                rows_by_id: dict[int, sqlite3.Row] = {
-                    int(row["id"]): row
-                    for row in recent_rows
-                }
+                rows_by_id: dict[int, sqlite3.Row] = {int(row["id"]): row for row in recent_rows}
 
                 if system_row is not None:
-                    rows_by_id[
-                        int(system_row["id"])
-                    ] = system_row
+                    rows_by_id[int(system_row["id"])] = system_row
 
-                rows = [
-                    rows_by_id[row_id]
-                    for row_id in sorted(rows_by_id)
-                ]
+                rows = [rows_by_id[row_id] for row_id in sorted(rows_by_id)]
 
-        return tuple(
-            self._row_to_message(row)
-            for row in rows
-        )
-
+        return tuple(self._row_to_message(row) for row in rows)
 
     def get_summary(
         self,
@@ -454,9 +419,7 @@ class SQLiteSessionStore:
         return SessionSummaryRecord(
             session_id=str(row["session_id"]),
             summary=str(row["summary"]),
-            covered_message_count=int(
-                row["covered_message_count"]
-            ),
+            covered_message_count=int(row["covered_message_count"]),
             updated_at=str(row["updated_at"]),
         )
 
@@ -472,14 +435,10 @@ class SQLiteSessionStore:
         clean_summary = summary.strip()
 
         if not clean_summary:
-            raise ValueError(
-                "Session summary cannot be empty."
-            )
+            raise ValueError("Session summary cannot be empty.")
 
         if covered_message_count < 0:
-            raise ValueError(
-                "covered_message_count cannot be negative."
-            )
+            raise ValueError("covered_message_count cannot be negative.")
 
         self.get_session(session_id)
         now = self._utc_now()
@@ -512,9 +471,7 @@ class SQLiteSessionStore:
         return SessionSummaryRecord(
             session_id=session_id,
             summary=clean_summary,
-            covered_message_count=(
-                covered_message_count
-            ),
+            covered_message_count=(covered_message_count),
             updated_at=now,
         )
 
@@ -545,9 +502,7 @@ class SQLiteSessionStore:
             {
                 "id": tool_call.id,
                 "name": tool_call.name,
-                "arguments": dict(
-                    tool_call.arguments
-                ),
+                "arguments": dict(tool_call.arguments),
             }
             for tool_call in tool_calls
         ]
@@ -563,33 +518,23 @@ class SQLiteSessionStore:
         raw_value: str,
     ) -> tuple[ToolCall, ...]:
         try:
-            payload = json.loads(
-                raw_value or "[]"
-            )
+            payload = json.loads(raw_value or "[]")
         except json.JSONDecodeError as exc:
-            raise SessionStoreError(
-                "Stored tool calls contain invalid JSON."
-            ) from exc
+            raise SessionStoreError("Stored tool calls contain invalid JSON.") from exc
 
         if not isinstance(payload, list):
-            raise SessionStoreError(
-                "Stored tool calls must be a list."
-            )
+            raise SessionStoreError("Stored tool calls must be a list.")
 
         tool_calls: list[ToolCall] = []
 
         for item in payload:
             if not isinstance(item, dict):
-                raise SessionStoreError(
-                    "Stored tool call must be an object."
-                )
+                raise SessionStoreError("Stored tool call must be an object.")
 
             arguments = item.get("arguments", {})
 
             if not isinstance(arguments, dict):
-                raise SessionStoreError(
-                    "Stored tool arguments must be an object."
-                )
+                raise SessionStoreError("Stored tool arguments must be an object.")
 
             tool_calls.append(
                 ToolCall(
@@ -611,9 +556,7 @@ class SQLiteSessionStore:
             content=row["content"],
             name=row["name"],
             tool_call_id=row["tool_call_id"],
-            tool_calls=cls._deserialize_tool_calls(
-                row["tool_calls_json"]
-            ),
+            tool_calls=cls._deserialize_tool_calls(row["tool_calls_json"]),
         )
 
     @staticmethod
@@ -625,9 +568,7 @@ class SQLiteSessionStore:
             title=str(row["title"]),
             created_at=str(row["created_at"]),
             updated_at=str(row["updated_at"]),
-            message_count=int(
-                row["message_count"]
-            ),
+            message_count=int(row["message_count"]),
         )
 
     @staticmethod
@@ -635,16 +576,10 @@ class SQLiteSessionStore:
         clean_title = title.strip()
 
         if not clean_title:
-            raise ValueError(
-                "Session title cannot be empty."
-            )
+            raise ValueError("Session title cannot be empty.")
 
         return clean_title[:120]
 
     @staticmethod
     def _utc_now() -> str:
-        return datetime.now(
-            timezone.utc
-        ).isoformat(
-            timespec="milliseconds"
-        )
+        return datetime.now(UTC).isoformat(timespec="milliseconds")
