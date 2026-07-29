@@ -14,7 +14,10 @@ from openclaw_ultimate.core.messages import (
     Role,
     ToolCall,
 )
-from openclaw_ultimate.sessions.models import SessionRecord
+from openclaw_ultimate.sessions.models import (
+    SessionRecord,
+    SessionSummaryRecord,
+)
 
 
 class SessionStoreError(RuntimeError):
@@ -90,6 +93,16 @@ class SQLiteSessionStore:
                     tool_call_id TEXT,
                     tool_calls_json TEXT NOT NULL DEFAULT '[]',
                     created_at TEXT NOT NULL,
+                    FOREIGN KEY (session_id)
+                        REFERENCES sessions(id)
+                        ON DELETE CASCADE
+                );
+
+                CREATE TABLE IF NOT EXISTS session_summaries (
+                    session_id TEXT PRIMARY KEY,
+                    summary TEXT NOT NULL,
+                    covered_message_count INTEGER NOT NULL,
+                    updated_at TEXT NOT NULL,
                     FOREIGN KEY (session_id)
                         REFERENCES sessions(id)
                         ON DELETE CASCADE
@@ -411,6 +424,118 @@ class SQLiteSessionStore:
             self._row_to_message(row)
             for row in rows
         )
+
+
+    def get_summary(
+        self,
+        session_id: str,
+    ) -> SessionSummaryRecord | None:
+        """读取会话滚动摘要。"""
+
+        self.get_session(session_id)
+
+        with self._connection() as connection:
+            row = connection.execute(
+                """
+                SELECT
+                    session_id,
+                    summary,
+                    covered_message_count,
+                    updated_at
+                FROM session_summaries
+                WHERE session_id = ?
+                """,
+                (session_id,),
+            ).fetchone()
+
+        if row is None:
+            return None
+
+        return SessionSummaryRecord(
+            session_id=str(row["session_id"]),
+            summary=str(row["summary"]),
+            covered_message_count=int(
+                row["covered_message_count"]
+            ),
+            updated_at=str(row["updated_at"]),
+        )
+
+    def upsert_summary(
+        self,
+        *,
+        session_id: str,
+        summary: str,
+        covered_message_count: int,
+    ) -> SessionSummaryRecord:
+        """创建或更新滚动摘要。"""
+
+        clean_summary = summary.strip()
+
+        if not clean_summary:
+            raise ValueError(
+                "Session summary cannot be empty."
+            )
+
+        if covered_message_count < 0:
+            raise ValueError(
+                "covered_message_count cannot be negative."
+            )
+
+        self.get_session(session_id)
+        now = self._utc_now()
+
+        with self._connection() as connection:
+            connection.execute(
+                """
+                INSERT INTO session_summaries (
+                    session_id,
+                    summary,
+                    covered_message_count,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(session_id)
+                DO UPDATE SET
+                    summary = excluded.summary,
+                    covered_message_count =
+                        excluded.covered_message_count,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    session_id,
+                    clean_summary,
+                    covered_message_count,
+                    now,
+                ),
+            )
+
+        return SessionSummaryRecord(
+            session_id=session_id,
+            summary=clean_summary,
+            covered_message_count=(
+                covered_message_count
+            ),
+            updated_at=now,
+        )
+
+    def clear_summary(
+        self,
+        session_id: str,
+    ) -> bool:
+        """删除当前会话摘要。"""
+
+        self.get_session(session_id)
+
+        with self._connection() as connection:
+            cursor = connection.execute(
+                """
+                DELETE FROM session_summaries
+                WHERE session_id = ?
+                """,
+                (session_id,),
+            )
+
+        return cursor.rowcount > 0
 
     @staticmethod
     def _serialize_tool_calls(

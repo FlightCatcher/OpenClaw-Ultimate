@@ -14,8 +14,15 @@ from openclaw_ultimate.context import (
     ContextWindowBuilder,
 )
 from openclaw_ultimate.core.messages import Message
-from openclaw_ultimate.core.runtime import AgentRuntime
+from openclaw_ultimate.core.runtime import (
+    Agent,
+    AgentRuntime,
+)
 from openclaw_ultimate.doctor import run_doctor
+from openclaw_ultimate.memory import (
+    ConversationSummarizer,
+    RollingSummaryContextManager,
+)
 from openclaw_ultimate.sessions import (
     SQLiteSessionStore,
     SessionNotFoundError,
@@ -161,7 +168,8 @@ async def _chat_async(
         f" · ID：[dim]{session.id}[/dim]"
     )
 
-    context_selection = _load_context_history(
+    context_selection = await _load_context_history(
+        agent=agent,
         store=store,
         session_id=session.id,
         settings=settings,
@@ -248,7 +256,8 @@ async def _chat_async(
             continue
 
         try:
-            context_selection = _load_context_history(
+            context_selection = await _load_context_history(
+                agent=agent,
                 store=store,
                 session_id=session.id,
                 settings=settings,
@@ -293,18 +302,14 @@ async def _chat_async(
     )
 
 
-def _load_context_history(
+async def _load_context_history(
     *,
+    agent: Agent,
     store: SQLiteSessionStore,
     session_id: str,
     settings: Settings,
 ) -> ContextSelection:
-    """读取持久化历史并按 Token 预算裁剪。"""
-
-    raw_history = store.load_messages(
-        session_id,
-        limit=settings.history_message_limit,
-    )
+    """读取历史、生成滚动摘要并构造模型上下文。"""
 
     builder = ContextWindowBuilder(
         max_tokens=settings.context_token_budget,
@@ -313,7 +318,18 @@ def _load_context_history(
         ),
     )
 
-    return builder.build(raw_history)
+    manager = RollingSummaryContextManager(
+        builder=builder,
+        summarizer=ConversationSummarizer(
+            agent.model
+        ),
+    )
+
+    return await manager.build(
+        store=store,
+        session_id=session_id,
+        system_prompt=agent.system_prompt,
+    )
 
 
 def _print_context_selection(

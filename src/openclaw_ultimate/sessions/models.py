@@ -12,3 +12,13 @@ class SessionRecord:
     created_at: str
     updated_at: str
     message_count: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class SessionSummaryRecord:
+    """持久化的滚动会话摘要。"""
+
+    session_id: str
+    summary: str
+    covered_message_count: int
+    updated_at: str

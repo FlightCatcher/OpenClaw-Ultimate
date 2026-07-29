@@ -1,4 +1,7 @@
-from openclaw_ultimate.sessions.models import SessionRecord
+from openclaw_ultimate.sessions.models import (
+    SessionRecord,
+    SessionSummaryRecord,
+)
 from openclaw_ultimate.sessions.sqlite_store import (
     SQLiteSessionStore,
     SessionNotFoundError,
@@ -10,4 +13,5 @@ __all__ = [
     "SessionNotFoundError",
     "SessionRecord",
     "SessionStoreError",
+    "SessionSummaryRecord",
 ]
