@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2 - 2026-07-29
+
+- Limited GitHub Release uploads to the VELA wheel and source archive.
+
 ## 1.0.1 - 2026-07-29
 
 - Fixed the governed shell runner's Windows creation flag lookup so Linux type
