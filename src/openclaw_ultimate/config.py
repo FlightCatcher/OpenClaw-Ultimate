@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     enable_shell_tool: bool = False
     workspace_root: Path = Field(default_factory=Path.cwd)
 
+    session_db_path: Path = Path(
+        ".openclaw/sessions.db"
+    )
+    history_message_limit: int = 100
+
     @property
     def openai_base_url(self) -> str:
         """返回 OpenAI-Compatible API 基础地址。"""
@@ -48,25 +53,53 @@ class Settings(BaseSettings):
 
     @field_validator("model_timeout")
     @classmethod
-    def validate_model_timeout(cls, value: float) -> float:
+    def validate_model_timeout(
+        cls,
+        value: float,
+    ) -> float:
         if value <= 0:
-            raise ValueError("model_timeout must be greater than zero.")
+            raise ValueError(
+                "model_timeout must be greater than zero."
+            )
 
         return value
 
     @field_validator("max_steps")
     @classmethod
-    def validate_max_steps(cls, value: int) -> int:
+    def validate_max_steps(
+        cls,
+        value: int,
+    ) -> int:
         if value < 1:
-            raise ValueError("max_steps must be at least 1.")
+            raise ValueError(
+                "max_steps must be at least 1."
+            )
 
         return value
 
     @field_validator("temperature")
     @classmethod
-    def validate_temperature(cls, value: float) -> float:
+    def validate_temperature(
+        cls,
+        value: float,
+    ) -> float:
         if not 0 <= value <= 2:
-            raise ValueError("temperature must be between 0 and 2.")
+            raise ValueError(
+                "temperature must be between 0 and 2."
+            )
+
+        return value
+
+    @field_validator("history_message_limit")
+    @classmethod
+    def validate_history_message_limit(
+        cls,
+        value: int,
+    ) -> int:
+        if value < 1:
+            raise ValueError(
+                "history_message_limit must be at least 1."
+            )
 
         return value
 

@@ -239,3 +239,6 @@ venv/
 # IDE
 .vscode/
 .idea/
+
+# Local session database
+.openclaw/
