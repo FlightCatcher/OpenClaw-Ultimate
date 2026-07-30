@@ -61,7 +61,7 @@ def create_backup(
 
         manifest = {
             "product": "VELA",
-            "version": "1.1.0",
+            "version": "1.1.1",
             "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
             "databases": databases,
             "includes_openclaw_config": included_openclaw,

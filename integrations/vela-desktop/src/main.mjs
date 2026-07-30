@@ -361,13 +361,13 @@ function createWindow() {
     minWidth: 980,
     minHeight: 650,
     show: false,
-    backgroundColor: "#080b12",
+    backgroundColor: "#09090a",
     icon: path.join(appRoot, "build", "vela-icon.ico"),
     title: "VELA",
     titleBarStyle: "hidden",
     titleBarOverlay: {
-      color: "#080b12",
-      symbolColor: "#dce9ff",
+      color: "#09090a",
+      symbolColor: "#e8e8ea",
       height: 42
     },
     webPreferences: {

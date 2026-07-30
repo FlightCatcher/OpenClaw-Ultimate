@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.1 - 2026-07-30
+
+- Refined VELA Desktop with a restrained black, white and graphite visual system.
+- Replaced the previous colorful mark with a minimal monochrome VELA icon across the title bar, welcome screen, messages and desktop shortcut.
+- Added spring-like entrance, message, control, dialog and toast animations with reduced-motion support.
+- Fixed stale icon caching and restored the welcome screen scroll position when starting a new conversation.
+- Rebuilt and installed VELA Desktop 4.1.1 after validating a real DeepSeek conversation.
+
 ## 1.1.0 - 2026-07-29
 
 - Shipped VELA Desktop as a standalone Windows application instead of a browser launcher.

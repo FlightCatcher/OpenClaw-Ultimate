@@ -66,7 +66,7 @@ def main() -> None:
         json.dumps(
             {
                 "benchmark": "vela-foundation",
-                "version": "1.1.0",
+                "version": "1.1.1",
                 "iterations": iterations,
                 "plan_save": _milliseconds(save_samples),
                 "plan_read": _milliseconds(read_samples),

@@ -480,7 +480,7 @@ function visibleMessages() {
 }
 
 function createBrandSvg() {
-  return `<img class="vela-logo" src="/vela-icon.png" alt="" />`;
+  return `<img class="vela-logo" src="/vela-icon.png?v=4.1.1" alt="" />`;
 }
 
 function renderEmptyState() {
@@ -632,11 +632,12 @@ function messagesRenderKey(messages) {
 
 function renderMessages(forceScroll = false) {
   const messages = visibleMessages();
+  const previousMessageCount = els.chatContent.querySelectorAll(".message-row").length;
   const renderKey = messagesRenderKey(messages);
   if (renderKey === state.renderedMessagesKey) {
     if (forceScroll) {
       requestAnimationFrame(() => {
-        els.chatScroll.scrollTop = els.chatScroll.scrollHeight;
+        els.chatScroll.scrollTop = messages.length === 0 ? 0 : els.chatScroll.scrollHeight;
       });
     }
     return;
@@ -651,6 +652,12 @@ function renderMessages(forceScroll = false) {
       ? renderEmptyState()
       : messages.map(renderMessage).join("") + (state.pending ? renderThinking() : "");
 
+  const renderedRows = Array.from(els.chatContent.querySelectorAll(".message-row"));
+  renderedRows.slice(Math.max(0, previousMessageCount)).forEach((row, index) => {
+    row.classList.add("message-row--fresh");
+    row.style.animationDelay = `${Math.min(index * 45, 180)}ms`;
+  });
+
   els.chatContent.querySelectorAll("a").forEach((link) => {
     link.target = "_blank";
     link.rel = "noreferrer";
@@ -661,7 +668,11 @@ function renderMessages(forceScroll = false) {
   els.chatContent.querySelectorAll("[data-quick]").forEach((button) => {
     button.addEventListener("click", () => handleQuickAction(button.dataset.quick));
   });
-  if (forceScroll || wasNearBottom) {
+  if (messages.length === 0) {
+    requestAnimationFrame(() => {
+      els.chatScroll.scrollTop = 0;
+    });
+  } else if (forceScroll || wasNearBottom) {
     requestAnimationFrame(() => {
       els.chatScroll.scrollTop = els.chatScroll.scrollHeight;
     });
@@ -810,7 +821,10 @@ function toast(message) {
   element.className = "toast";
   element.textContent = message;
   els.toastRegion.append(element);
-  setTimeout(() => element.remove(), 3200);
+  setTimeout(() => {
+    element.classList.add("is-leaving");
+    setTimeout(() => element.remove(), 380);
+  }, 2900);
 }
 
 function autoResizeComposer() {

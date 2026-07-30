@@ -9,7 +9,7 @@ FILES = {
     "pyproject.toml": """
 [project]
 name = "openclaw-ultimate"
-version = "1.1.0"
+version = "1.1.1"
 description = "Local-first modular AI agent platform"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
@@ -74,7 +74,7 @@ uv run ocu chat
 
 Shell 工具默认关闭。
 """,
-    "src/openclaw_ultimate/__init__.py": '__version__ = "1.1.0"\n',
+    "src/openclaw_ultimate/__init__.py": '__version__ = "1.1.1"\n',
     "src/openclaw_ultimate/config.py": """
 from pathlib import Path
 from pydantic import Field
