@@ -47,6 +47,125 @@ function readOpenClawConfig() {
   return { configPath, token, port };
 }
 
+function modelCatalog(config) {
+  const configured = config?.agents?.defaults?.models ?? {};
+  const primary = String(config?.agents?.defaults?.model?.primary ?? "");
+  const fallbackIds = Array.isArray(config?.agents?.defaults?.model?.fallbacks)
+    ? config.agents.defaults.model.fallbacks.map(String)
+    : [];
+  const ids = [...new Set([
+    primary,
+    ...fallbackIds,
+    ...Object.keys(configured)
+  ])].filter((id) => id && !/(?:embedding|embed)/i.test(id));
+  const items = ids.map((id) => {
+    const alias = configured[id]?.alias;
+    const short = id.includes("/") ? id.split("/").slice(1).join("/") : id;
+    const provider = id.startsWith("ollama/") ? "本地" : id.startsWith("deepseek/") ? "DeepSeek" : id.split("/")[0];
+    return { id, label: alias ? `${alias} · ${short}` : `${provider} · ${short}` };
+  });
+  return { primary, items };
+}
+
+function openClawCommand() {
+  const commandPath = path.join(process.env.APPDATA ?? "", "npm", "openclaw.cmd");
+  return fs.existsSync(commandPath) ? commandPath : "openclaw";
+}
+
+function setOpenClawModel(model) {
+  return new Promise((resolve, reject) => {
+    execFile(
+      openClawCommand(),
+      ["models", "set", model],
+      { shell: process.platform === "win32", timeout: 20000, windowsHide: true },
+      (error, stdout, stderr) => {
+        if (error) {
+          reject(new Error(String(stderr || stdout || error.message).trim()));
+          return;
+        }
+        resolve(String(stdout ?? "").trim());
+      }
+    );
+  });
+}
+
+function readRequestBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on("data", (chunk) => {
+      size += chunk.length;
+      if (size > 64 * 1024) {
+        req.destroy(new Error("Request body is too large"));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    req.on("error", reject);
+  });
+}
+
+function readComfyProfile(config) {
+  const raw = config?.plugins?.entries?.comfy?.config;
+  const image = raw?.image;
+  if (!raw || !image) throw new Error("ComfyUI image profile is not configured.");
+  return {
+    baseUrl: String(raw.baseUrl ?? "http://127.0.0.1:8188").replace(/\/$/, ""),
+    workflowPath: String(image.workflowPath),
+    promptNodeId: String(image.promptNodeId),
+    promptInputName: String(image.promptInputName),
+    outputNodeId: String(image.outputNodeId),
+    pollIntervalMs: Number(image.pollIntervalMs ?? 1000),
+    timeoutMs: Number(image.timeoutMs ?? 600000)
+  };
+}
+
+async function generateComfyImage(config, prompt) {
+  const profile = readComfyProfile(config);
+  const workflow = JSON.parse(fs.readFileSync(profile.workflowPath, "utf8"));
+  const node = workflow?.[profile.promptNodeId];
+  if (!node?.inputs) throw new Error(`ComfyUI prompt node ${profile.promptNodeId} is invalid.`);
+  node.inputs[profile.promptInputName] = prompt.trim();
+  const queued = await fetch(`${profile.baseUrl}/prompt`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt: workflow, client_id: `vela-${crypto.randomUUID()}` })
+  });
+  if (!queued.ok) throw new Error(`ComfyUI queue failed (${queued.status}).`);
+  const queuedPayload = await queued.json();
+  const promptId = String(queuedPayload.prompt_id ?? "");
+  if (!promptId) throw new Error("ComfyUI did not return a prompt id.");
+
+  const deadline = Date.now() + profile.timeoutMs;
+  while (Date.now() < deadline) {
+    const history = await fetch(`${profile.baseUrl}/history/${encodeURIComponent(promptId)}`);
+    if (history.ok) {
+      const record = (await history.json())?.[promptId];
+      const images = record?.outputs?.[profile.outputNodeId]?.images;
+      if (Array.isArray(images) && images.length) {
+        return {
+          promptId,
+          outputs: images.filter((item) => item?.filename).map((item) => {
+            const query = new URLSearchParams({
+              filename: String(item.filename),
+              subfolder: String(item.subfolder ?? ""),
+              type: String(item.type ?? "output")
+            });
+            return {
+              filename: String(item.filename),
+              viewUrl: `${profile.baseUrl}/view?${query.toString()}`
+            };
+          })
+        };
+      }
+      if (record?.status?.status_str === "error") throw new Error("ComfyUI reported a generation error.");
+    }
+    await new Promise((resolve) => setTimeout(resolve, Math.max(250, profile.pollIntervalMs)));
+  }
+  throw new Error(`ComfyUI generation timed out after ${Math.round(profile.timeoutMs / 1000)} seconds.`);
+}
+
 function gatewayIsAvailable(port) {
   return new Promise((resolve) => {
     const socket = net.createConnection({ host: "127.0.0.1", port });
@@ -264,6 +383,52 @@ function createServer(openClaw) {
           token: openClaw.token,
           version: app.getVersion()
         });
+        return;
+      }
+
+      if (url.pathname === "/api/models") {
+        if (!requestIsAuthorized(req, url)) {
+          sendJson(res, 403, { error: "Forbidden" });
+          return;
+        }
+        const config = JSON.parse(fs.readFileSync(openClaw.configPath, "utf8"));
+        sendJson(res, 200, modelCatalog(config));
+        return;
+      }
+
+      if (url.pathname === "/api/generate-image" && req.method === "POST") {
+        if (!requestIsAuthorized(req, url)) {
+          sendJson(res, 403, { error: "Forbidden" });
+          return;
+        }
+        const payload = JSON.parse(await readRequestBody(req));
+        const prompt = typeof payload?.prompt === "string" ? payload.prompt.trim() : "";
+        if (!prompt) {
+          sendJson(res, 400, { error: "Image prompt is empty." });
+          return;
+        }
+        const config = JSON.parse(fs.readFileSync(openClaw.configPath, "utf8"));
+        sendJson(res, 200, await generateComfyImage(config, prompt));
+        return;
+      }
+
+      if (url.pathname === "/api/model" && req.method === "POST") {
+        if (!requestIsAuthorized(req, url)) {
+          sendJson(res, 403, { error: "Forbidden" });
+          return;
+        }
+        const payload = JSON.parse(await readRequestBody(req));
+        const model = typeof payload?.model === "string" ? payload.model.trim() : "";
+        const config = JSON.parse(fs.readFileSync(openClaw.configPath, "utf8"));
+        const catalog = modelCatalog(config);
+        const selected = catalog.items.find((item) => item.id === model);
+        if (!selected) {
+          sendJson(res, 400, { error: "Model is not configured for VELA." });
+          return;
+        }
+        await setOpenClawModel(selected.id);
+        const refreshed = JSON.parse(fs.readFileSync(openClaw.configPath, "utf8"));
+        sendJson(res, 200, { primary: modelCatalog(refreshed).primary, label: selected.label });
         return;
       }
 

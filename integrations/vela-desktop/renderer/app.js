@@ -28,7 +28,12 @@ const translations = {
     localAgent: "本地智能体",
     localPrivate: "本地 · 私密",
     messagePlaceholder: "给 VELA 发消息",
-    modelNote: "DeepSeek 主模型 · OpenClaw 本地执行引擎",
+    modelLabel: "模型",
+    modelNote: "当前模型 · OpenClaw 执行引擎",
+    modelLoading: "正在读取模型",
+    modelSwitching: "正在切换模型…",
+    modelSwitched: "模型已切换",
+    modelSwitchFailed: "模型切换失败",
     newChat: "新对话",
     noText: "附件",
     openWeb: "联网研究",
@@ -95,7 +100,12 @@ const translations = {
     localAgent: "Local agent",
     localPrivate: "Local · Private",
     messagePlaceholder: "Message VELA",
-    modelNote: "DeepSeek primary · OpenClaw local execution engine",
+    modelLabel: "Model",
+    modelNote: "Current model · OpenClaw execution engine",
+    modelLoading: "Loading models",
+    modelSwitching: "Switching model…",
+    modelSwitched: "Model switched",
+    modelSwitchFailed: "Could not switch model",
     newChat: "New chat",
     noText: "Attachment",
     openWeb: "Research the web",
@@ -161,6 +171,7 @@ const els = {
   mediaClose: document.querySelector("#media-close"),
   mediaDialog: document.querySelector("#media-dialog"),
   mediaDialogImage: document.querySelector("#media-dialog-image"),
+  modelSelect: document.querySelector("#model-select"),
   newChatButton: document.querySelector("#new-chat-button"),
   retryButton: document.querySelector("#retry-button"),
   sendButton: document.querySelector("#send-button"),
@@ -204,6 +215,7 @@ const state = {
   imageStartedAt: 0,
   imageStatusTimer: null,
   imageSettings: loadImageSettings(),
+  models: { primary: "", items: [] },
   language: localStorage.getItem("openclaw.desktop.language") === "en" ? "en" : "zh",
   optimistic: null,
   pending: false,
@@ -399,7 +411,7 @@ function mediaUrl(value) {
 
 function mediaKind(value, mimeType = "") {
   const source = `${value} ${mimeType}`.toLowerCase();
-  if (/\.(?:png|jpe?g|webp|gif|bmp)(?:$|[?#\s])/.test(source) || mimeType.startsWith("image/")) return "image";
+  if (/\.(?:png|jpe?g|webp|gif|bmp)(?:$|[?#\s])/.test(source) || mimeType.startsWith("image/") || /\/view(?:\?|$)/.test(source)) return "image";
   if (/\.(?:mp4|webm)(?:$|[?#\s])/.test(source) || mimeType.startsWith("video/")) return "video";
   if (/\.(?:mp3|wav)(?:$|[?#\s])/.test(source) || mimeType.startsWith("audio/")) return "audio";
   return "file";
@@ -431,7 +443,7 @@ function extractMessageParts(message) {
     else files.push(item);
   };
 
-  const mediaLinePattern = /(?:^|\n)\s*MEDIA:\s*([A-Za-z]:[^\r\n]+|\/[^\r\n]+)/gi;
+  const mediaLinePattern = /(?:^|\n)\s*MEDIA:\s*((?:https?:\/\/|[A-Za-z]:|\/)[^\r\n]+)/gi;
   text = text.replace(mediaLinePattern, (_match, value) => {
     add(value);
     return "\n";
@@ -441,6 +453,15 @@ function extractMessageParts(message) {
   text = text.replace(markdownImagePattern, (_match, label, value) => {
     if (!hasNativeImage) add(value, "image/*", label);
     return "\n";
+  });
+
+  // ComfyUI/OpenClaw tool results commonly arrive as JSON text with a
+  // `view_url` field instead of a native image content block. Promote those
+  // URLs to real media so the desktop client displays the generated image.
+  const toolImageUrlPattern = /["']?(?:view_url|image_url|media_url|mediaUrl)["']?\s*:\s*["'](https?:\/\/[^"'\\\s]+|[A-Za-z]:\\[^"'\\\s]+)["']/gi;
+  text = text.replace(toolImageUrlPattern, (_match, value) => {
+    add(String(value).replaceAll("\\/", "/"), "image/png", t("generateImage"));
+    return "";
   });
 
   if (Array.isArray(message?.content)) {
@@ -801,6 +822,60 @@ function renderAll(forceScroll = false) {
   renderConnection();
   renderAttachments();
   renderMessages(forceScroll);
+  renderModelPicker();
+}
+
+function renderModelPicker() {
+  if (!els.modelSelect) return;
+  const items = Array.isArray(state.models.items) ? state.models.items : [];
+  els.modelSelect.innerHTML = items.length
+    ? items.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.label)}</option>`).join("")
+    : `<option value="">${escapeHtml(t("modelLoading"))}</option>`;
+  els.modelSelect.value = state.models.primary || items[0]?.id || "";
+  els.modelSelect.disabled = !state.connected || !items.length || state.pending;
+  els.modelSelect.title = state.models.primary || t("modelLoading");
+}
+
+async function loadModels() {
+  if (!els.modelSelect) return;
+  try {
+    const response = await fetch("/api/models", {
+      headers: { "X-OpenClaw-App-Key": appKey },
+      cache: "no-store"
+    });
+    if (!response.ok) throw new Error(`Model list failed (${response.status})`);
+    state.models = await response.json();
+    renderModelPicker();
+  } catch (error) {
+    renderModelPicker();
+    toast(String(error));
+  }
+}
+
+async function switchModel(modelId) {
+  if (!modelId || modelId === state.models.primary || state.pending) return;
+  const previous = state.models.primary;
+  els.modelSelect.disabled = true;
+  toast(t("modelSwitching"));
+  try {
+    const response = await fetch("/api/model", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-OpenClaw-App-Key": appKey
+      },
+      body: JSON.stringify({ model: modelId })
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || t("modelSwitchFailed"));
+    state.models.primary = payload.primary || modelId;
+    renderModelPicker();
+    toast(`${t("modelSwitched")}: ${payload.label || state.models.primary}`);
+  } catch (error) {
+    state.models.primary = previous;
+    renderModelPicker();
+    toast(`${t("modelSwitchFailed")}: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 function renderRunState() {
@@ -888,6 +963,9 @@ function imageStudioMessage(prompt) {
   const safePrompt = prompt.replace(/\bPROMPT_END\b/gi, "PROMPT END");
   return [
     "OPENCLAW_IMAGE_STUDIO_V2",
+    "ACTION=GENERATE_IMAGE",
+    "IMPORTANT=直接调用 generate_image 工具并在当前对话返回真实图片，不要只描述步骤或提示词",
+    "RETURN_MEDIA=工具返回后保留 outputs[].view_url，使用 MEDIA: URL 或 Markdown 图片返回",
     `ASPECT=${state.imageSettings.aspect}`,
     `STYLE=${state.imageSettings.style}`,
     `QUALITY=${state.imageSettings.quality}`,
@@ -897,9 +975,8 @@ function imageStudioMessage(prompt) {
     "MODEL_ROUTING=auto",
     "MAX_GENERATIONS=1",
     "DESIGN_PHASES=SEMANTIC_PARSE,DETAIL_COMPLETION,COMPOSITION,STYLE_LIGHT_COLOR,CONSISTENCY_CHECK",
-    "PIPELINE_ORDER=DESIGN_PLAN,WEB_SEARCH,REFERENCE_ANALYSIS,MODEL_ROUTER,ONE_GENERATION,IMMEDIATE_PUBLISH",
-    "RESEARCH_MANIFEST=required",
-    "FORBIDDEN=image_generate,manual_comfy,retry,namesake_substitution",
+    "PIPELINE_ORDER=DESIGN_PLAN,MODEL_ROUTER,ONE_GENERATION,IMMEDIATE_PUBLISH",
+    "FORBIDDEN=retry,namesake_substitution",
     "PUBLISH_POLICY=ONE_PASS_IMMEDIATE",
     "RESOLUTION=4K",
     "PROMPT_BEGIN",
@@ -950,6 +1027,34 @@ async function sendMessage() {
   renderAll(true);
 
   try {
+    if (isImageRequest) {
+      const response = await fetch("/api/generate-image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-OpenClaw-App-Key": appKey
+        },
+        body: JSON.stringify({ prompt: rawText })
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || t("sendFailed"));
+      const outputs = Array.isArray(payload.outputs) ? payload.outputs : [];
+      if (!outputs.length) throw new Error("ComfyUI returned no image output.");
+      state.history = [
+        ...state.history,
+        {
+          role: "assistant",
+          content: outputs.map((output) => `MEDIA: ${output.viewUrl}`).join("\n"),
+          timestamp: Date.now()
+        }
+      ];
+      state.pending = false;
+      state.activeRunId = null;
+      state.optimistic = null;
+      stopImageStatusPolling();
+      renderAll(true);
+      return;
+    }
     const response = await state.client.request("chat.send", {
       sessionKey: currentSessionKey,
       agentId: "main",
@@ -1170,6 +1275,7 @@ async function connectGateway() {
       onHello: () => {
         state.connected = true;
         renderConnection();
+        renderModelPicker();
         startPolling();
         void refreshHistory(true);
       },
@@ -1235,6 +1341,7 @@ els.themeButton.addEventListener("click", () => {
 });
 els.sidebarButton.addEventListener("click", () => els.sidebar.classList.toggle("is-open"));
 els.retryButton.addEventListener("click", connectGateway);
+els.modelSelect?.addEventListener("change", () => void switchModel(els.modelSelect.value));
 els.attachButton.addEventListener("click", () => els.fileInput.click());
 els.fileInput.addEventListener("change", async () => {
   await addFiles(els.fileInput.files);
@@ -1301,3 +1408,4 @@ applyLanguage();
 renderAll(true);
 autoResizeComposer();
 void connectGateway();
+void loadModels();
