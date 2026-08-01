@@ -236,6 +236,8 @@ body,
 
 .main,
 :root[data-theme="dark"] .main {
+  display: grid;
+  grid-template-rows: 64px auto minmax(0, 1fr) auto;
   background:
     radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.018), transparent 36%),
     linear-gradient(180deg, rgba(13, 13, 15, 0.92), rgba(8, 8, 9, 0.96));
@@ -243,11 +245,211 @@ body,
 }
 
 .chat-header {
+  grid-row: 1;
   transition: background 300ms var(--ease-standard);
 }
 
 .chat-header__identity {
   animation: soft-rise 520ms 120ms var(--ease-spring) both;
+}
+
+.command-deck {
+  position: fixed;
+  top: 134px;
+  right: 30px;
+  left: 312px;
+  z-index: 999;
+  height: 106px !important;
+  max-height: 106px !important;
+  min-height: 106px !important;
+  flex: 0 0 auto;
+  z-index: 3;
+  margin: 10px 18px 0;
+  padding: 9px 12px 10px;
+  overflow: visible;
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  border-radius: 17px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.16), transparent 28%),
+    linear-gradient(135deg, rgba(34, 34, 39, 0.96), rgba(18, 18, 22, 0.96) 48%, rgba(28, 28, 34, 0.96));
+  box-shadow:
+    0 12px 34px rgba(0, 0, 0, 0.24),
+    inset 0 1px rgba(255, 255, 255, 0.12),
+    inset 0 -1px rgba(0, 0, 0, 0.28);
+  -webkit-backdrop-filter: blur(26px) saturate(125%);
+  backdrop-filter: blur(26px) saturate(125%);
+  transition: max-height 480ms var(--ease-spring), transform 480ms var(--ease-spring), background 320ms var(--ease-standard), box-shadow 480ms var(--ease-spring);
+  animation: deck-arrive 720ms 100ms var(--ease-spring) both;
+}
+
+.command-deck::after {
+  position: absolute;
+  inset: -80% -20%;
+  z-index: -1;
+  content: "";
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 36%, rgba(255, 255, 255, 0.09) 48%, transparent 60%);
+  transform: translateX(-55%);
+  animation: glass-sweep 9s var(--ease-standard) infinite;
+}
+
+.command-deck__topline,
+.command-deck__flow,
+.command-deck__metrics {
+  position: relative;
+  z-index: 1;
+}
+
+.command-deck__topline,
+.command-deck__flow,
+.command-deck__metrics {
+  display: flex;
+  align-items: center;
+}
+
+.command-deck__topline {
+  justify-content: space-between;
+}
+
+.command-deck__label,
+.deck-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #b9b9be;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.deck-signal,
+.deck-node i {
+  width: 6px;
+  height: 6px;
+  border-radius: 99px;
+  background: #e9e9eb;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.055), 0 0 18px rgba(255, 255, 255, 0.3);
+}
+
+.deck-signal {
+  animation: status-breathe 2.6s ease-in-out infinite;
+}
+
+.deck-toggle {
+  padding: 4px 8px;
+  color: #85858b;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  font-size: 9px;
+  cursor: pointer;
+  transition: color 220ms var(--ease-standard), background 220ms var(--ease-standard), transform 320ms var(--ease-spring);
+}
+
+.deck-toggle:hover {
+  color: #f2f2f3;
+  background: rgba(255, 255, 255, 0.07);
+  transform: translateY(-1px);
+}
+
+.command-deck__flow {
+  gap: 10px;
+  height: 26px !important;
+  max-height: 26px !important;
+  margin-top: 11px;
+  overflow: hidden;
+  opacity: 1;
+  transform: translateY(0);
+  transition: max-height 440ms var(--ease-spring), margin-top 440ms var(--ease-spring), opacity 260ms var(--ease-standard), transform 440ms var(--ease-spring);
+}
+
+.command-deck.is-collapsed .command-deck__flow {
+  max-height: 0;
+  margin-top: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.deck-node {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 72px;
+  color: #77777d;
+  font-size: 10px;
+  transition: color 300ms var(--ease-standard), transform 420ms var(--ease-spring);
+}
+
+.deck-node i {
+  width: 5px;
+  height: 5px;
+  background: #56565c;
+  box-shadow: none;
+  transition: background 300ms var(--ease-standard), box-shadow 420ms var(--ease-spring), transform 420ms var(--ease-spring);
+}
+
+.deck-node.is-active,
+.deck-node.is-complete {
+  color: #f0f0f1;
+}
+
+.deck-node.is-active {
+  transform: translateY(-1px);
+}
+
+.deck-node.is-active i,
+.deck-node.is-complete i {
+  background: #f3f3f4;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.06), 0 0 20px rgba(255, 255, 255, 0.26);
+}
+
+.deck-node.is-active i {
+  animation: status-breathe 1.8s ease-in-out infinite;
+}
+
+.deck-link {
+  flex: 1;
+  height: 1px;
+  min-width: 24px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.035));
+}
+
+.command-deck__metrics {
+  height: 18px;
+  gap: 18px;
+  margin-top: 9px;
+  color: #727278;
+  font-size: 9px;
+}
+
+.command-deck__metrics span:not(.deck-status) {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.command-deck__metrics small {
+  font-size: inherit;
+}
+
+.command-deck__metrics strong {
+  color: #d8d8db;
+  font-weight: 650;
+}
+
+.deck-status {
+  margin-left: auto;
+  color: #d2d2d5;
+  letter-spacing: 0.04em;
+}
+
+.command-deck.is-working {
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 16px 42px rgba(0, 0, 0, 0.34),
+    0 0 0 1px rgba(255, 255, 255, 0.025),
+    inset 0 1px rgba(255, 255, 255, 0.15);
 }
 
 .model-picker {
@@ -308,7 +510,12 @@ body,
 }
 
 .chat-scroll {
+  grid-row: 3;
   scroll-behavior: smooth;
+}
+
+.composer-area {
+  grid-row: 4;
 }
 
 .session-list::-webkit-scrollbar,
@@ -630,6 +837,28 @@ textarea:focus-visible {
   }
 }
 
+@keyframes deck-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes glass-sweep {
+  0%,
+  36% {
+    transform: translateX(-55%);
+  }
+  62%,
+  100% {
+    transform: translateX(55%);
+  }
+}
+
 @keyframes soft-rise {
   from {
     opacity: 0;
@@ -735,5 +964,20 @@ textarea:focus-visible {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 980px) {
+  .command-deck {
+    margin-right: 12px;
+    margin-left: 12px;
+  }
+
+  .deck-node {
+    min-width: auto;
+  }
+
+  .deck-node b {
+    display: none;
   }
 }

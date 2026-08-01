@@ -34,6 +34,19 @@ const translations = {
     modelSwitching: "正在切换模型…",
     modelSwitched: "模型已切换",
     modelSwitchFailed: "模型切换失败",
+    workspaceLive: "实时工作区",
+    workspaceOpen: "展开可视化",
+    workspaceClose: "收起可视化",
+    flowIntent: "理解",
+    flowPlan: "规划",
+    flowExecute: "执行",
+    flowVerify: "验证",
+    metricSession: "会话",
+    metricHistory: "消息",
+    metricMode: "模式",
+    metricReady: "就绪",
+    metricWorking: "工作中",
+    metricImage: "生图",
     newChat: "新对话",
     noText: "附件",
     openWeb: "联网研究",
@@ -106,6 +119,19 @@ const translations = {
     modelSwitching: "Switching model…",
     modelSwitched: "Model switched",
     modelSwitchFailed: "Could not switch model",
+    workspaceLive: "Live workspace",
+    workspaceOpen: "Open visualizer",
+    workspaceClose: "Close visualizer",
+    flowIntent: "Understand",
+    flowPlan: "Plan",
+    flowExecute: "Execute",
+    flowVerify: "Verify",
+    metricSession: "Session",
+    metricHistory: "Messages",
+    metricMode: "Mode",
+    metricReady: "Ready",
+    metricWorking: "Working",
+    metricImage: "Image",
     newChat: "New chat",
     noText: "Attachment",
     openWeb: "Research the web",
@@ -172,6 +198,12 @@ const els = {
   mediaDialog: document.querySelector("#media-dialog"),
   mediaDialogImage: document.querySelector("#media-dialog-image"),
   modelSelect: document.querySelector("#model-select"),
+  commandDeck: document.querySelector("#command-deck"),
+  workspaceToggle: document.querySelector("#workspace-toggle"),
+  deckStatus: document.querySelector("#deck-status"),
+  deckMode: document.querySelector("#deck-mode"),
+  deckSession: document.querySelector("#deck-session"),
+  deckHistory: document.querySelector("#deck-history"),
   newChatButton: document.querySelector("#new-chat-button"),
   retryButton: document.querySelector("#retry-button"),
   sendButton: document.querySelector("#send-button"),
@@ -182,6 +214,26 @@ const els = {
   themeButton: document.querySelector("#theme-button"),
   toastRegion: document.querySelector("#toast-region")
 };
+
+// Keep the live workspace in the document root so the glass panel is never
+// clipped by the chat grid or its scrolling container.
+if (els.commandDeck && els.commandDeck.parentElement !== document.body) {
+  document.body.appendChild(els.commandDeck);
+}
+if (els.commandDeck) {
+  Object.assign(els.commandDeck.style, {
+    position: "fixed",
+    top: "134px",
+    left: "312px",
+    right: "30px",
+    height: "106px",
+    minHeight: "106px",
+    maxHeight: "106px",
+    zIndex: "9999",
+    display: "block",
+    overflow: "visible",
+  });
+}
 
 const query = new URLSearchParams(location.search);
 const appKey = query.get("appKey") ?? "";
@@ -728,6 +780,26 @@ function renderHeader() {
   els.chatTitle.textContent = currentSession()?.title || "VELA";
 }
 
+function renderCommandDeck() {
+  if (!els.commandDeck) return;
+  const working = state.pending;
+  const image = state.activeImageRun;
+  const active = working ? (image ? "execute" : "plan") : "intent";
+  const completed = working ? (image ? ["intent", "plan"] : ["intent"]) : [];
+  els.commandDeck.classList.toggle("is-working", working);
+  els.commandDeck.querySelectorAll("[data-deck-node]").forEach((node) => {
+    const name = node.dataset.deckNode;
+    node.classList.toggle("is-active", name === active);
+    node.classList.toggle("is-complete", completed.includes(name));
+  });
+  const mode = image ? t("metricImage") : working ? t("metricWorking") : t("metricReady");
+  els.deckMode.textContent = mode;
+  els.deckSession.textContent = String(state.sessions.length);
+  els.deckHistory.textContent = String(state.history.length);
+  els.deckStatus.textContent = state.connected ? t("connected") : t("disconnected");
+  els.workspaceToggle.textContent = els.commandDeck.classList.contains("is-collapsed") ? t("workspaceOpen") : t("workspaceClose");
+}
+
 function renderConnection() {
   els.connectionPill.classList.toggle("is-connected", state.connected);
   els.connectionPill.classList.toggle("is-error", !state.connected && Boolean(state.bootstrap));
@@ -823,6 +895,7 @@ function renderAll(forceScroll = false) {
   renderAttachments();
   renderMessages(forceScroll);
   renderModelPicker();
+  renderCommandDeck();
 }
 
 function renderModelPicker() {
@@ -1342,6 +1415,10 @@ els.themeButton.addEventListener("click", () => {
 els.sidebarButton.addEventListener("click", () => els.sidebar.classList.toggle("is-open"));
 els.retryButton.addEventListener("click", connectGateway);
 els.modelSelect?.addEventListener("change", () => void switchModel(els.modelSelect.value));
+els.workspaceToggle?.addEventListener("click", () => {
+  els.commandDeck.classList.toggle("is-collapsed");
+  renderCommandDeck();
+});
 els.attachButton.addEventListener("click", () => els.fileInput.click());
 els.fileInput.addEventListener("change", async () => {
   await addFiles(els.fileInput.files);

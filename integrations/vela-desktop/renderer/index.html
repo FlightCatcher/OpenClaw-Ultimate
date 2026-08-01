@@ -5,15 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
     <title>VELA</title>
-    <link rel="stylesheet" href="/styles.css?v=4.2.0" />
-    <link rel="stylesheet" href="/vela.css?v=4.2.0" />
+    <link rel="stylesheet" href="/styles.css?v=4.3.0" />
+    <link rel="stylesheet" href="/vela.css?v=4.3.0" />
   </head>
   <body>
     <div id="app" class="app-shell">
       <header class="titlebar">
         <div class="titlebar__brand">
           <span class="brand-mark" aria-hidden="true">
-            <img class="vela-logo" src="/vela-icon.png?v=4.2.0" alt="" />
+            <img class="vela-logo" src="/vela-icon.png?v=4.3.0" alt="" />
           </span>
           <span>VELA</span>
           <small>LOCAL AGENT</small>
@@ -78,6 +78,31 @@
             </div>
           </div>
         </header>
+
+        <section class="command-deck" id="command-deck" aria-label="Live workspace">
+          <div class="command-deck__topline">
+            <div class="command-deck__label">
+              <span class="deck-signal"></span>
+              <span data-i18n="workspaceLive">实时工作区</span>
+            </div>
+            <button class="deck-toggle" id="workspace-toggle" type="button" data-i18n="workspaceOpen">展开可视化</button>
+          </div>
+          <div class="command-deck__flow" aria-label="Agent workflow">
+            <span class="deck-node is-active" data-deck-node="intent"><i></i><b data-i18n="flowIntent">理解</b></span>
+            <span class="deck-link"></span>
+            <span class="deck-node" data-deck-node="plan"><i></i><b data-i18n="flowPlan">规划</b></span>
+            <span class="deck-link"></span>
+            <span class="deck-node" data-deck-node="execute"><i></i><b data-i18n="flowExecute">执行</b></span>
+            <span class="deck-link"></span>
+            <span class="deck-node" data-deck-node="verify"><i></i><b data-i18n="flowVerify">验证</b></span>
+          </div>
+          <div class="command-deck__metrics">
+            <span><small data-i18n="metricSession">会话</small><strong id="deck-session">1</strong></span>
+            <span><small data-i18n="metricHistory">消息</small><strong id="deck-history">0</strong></span>
+            <span><small data-i18n="metricMode">模式</small><strong id="deck-mode">就绪</strong></span>
+            <span class="deck-status"><small id="deck-status">已连接</small></span>
+          </div>
+        </section>
 
         <section class="chat-scroll" id="chat-scroll">
           <div class="chat-content" id="chat-content"></div>
@@ -213,6 +238,6 @@
       />
       <div class="toast-region" id="toast-region" aria-live="polite"></div>
     </div>
-    <script type="module" src="/app.js?v=4.1.1"></script>
+    <script type="module" src="/app.js?v=4.3.0"></script>
   </body>
 </html>
