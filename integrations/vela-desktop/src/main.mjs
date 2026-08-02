@@ -5,11 +5,14 @@ import fs from "node:fs";
 import http from "node:http";
 import net from "node:net";
 import path from "node:path";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 
 const APP_PORT = 18790;
 const APP_HOST = "127.0.0.1";
 const COMFY_PORT = 8188;
+const OCU_PORT = 8765;
+const OCU_PROJECT_ROOT = process.env.OCU_PROJECT_ROOT ?? "E:\\Projects\\OpenClaw-Ultimate";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(__dirname, "..");
 const rendererRoot = path.join(appRoot, "renderer");
@@ -113,9 +116,13 @@ function readComfyProfile(config) {
   return {
     baseUrl: String(raw.baseUrl ?? "http://127.0.0.1:8188").replace(/\/$/, ""),
     workflowPath: String(image.workflowPath),
+    referenceWorkflowPath: String(image.referenceWorkflowPath ?? "C:\\AI-Apps\\OpenClaw-Workflows\\animagine-reference-api.json"),
+    fluxWorkflowPath: String(image.fluxWorkflowPath ?? path.join(appRoot, "workflows", "flux2-klein-text-api.json")),
     promptNodeId: String(image.promptNodeId),
     promptInputName: String(image.promptInputName),
     outputNodeId: String(image.outputNodeId),
+    fluxOutputNodeId: String(image.fluxOutputNodeId ?? "12"),
+    referenceImageNodeId: String(image.referenceImageNodeId ?? "12"),
     pollIntervalMs: Number(image.pollIntervalMs ?? 1000),
     timeoutMs: Number(image.timeoutMs ?? 600000)
   };
@@ -141,56 +148,247 @@ function routedImagePrompt(prompt, route) {
   return `masterpiece, best quality, anime illustration, clean lineart, expressive character design, cel shading, vivid but coherent colors, ${cleaned}, no text, no watermark`;
 }
 
+function routedFluxPrompt(prompt) {
+  const cleaned = String(prompt ?? "").trim();
+  return `${cleaned}. High-quality concept illustration, coherent composition, clear subject silhouette, expressive pose, refined materials, controlled lighting, no text, no watermark.`;
+}
+
+function imageEngine(settings = {}) {
+  const requested = String(settings?.engine ?? "anime").toLowerCase();
+  return requested === "flux" || requested === "flux2" ? "flux2" : "anime";
+}
+
+function imageDimensions(settings = {}) {
+  const dimensions = {
+    square: [640, 640],
+    landscape: [768, 576],
+    portrait: [576, 768],
+    classic: [704, 528],
+    vertical: [576, 768],
+    photo: [768, 576]
+  };
+  const [width, height] = dimensions[String(settings?.aspect ?? "landscape")] ?? dimensions.landscape;
+  return { width, height };
+}
+
+function imageSteps(settings = {}, engine = "anime") {
+  const values = engine === "flux2"
+    ? { standard: 5, high: 8, ultra: 12 }
+    : { standard: 10, high: 22, ultra: 30 };
+  return values[String(settings?.quality ?? "high")] ?? values.high;
+}
+
+function decodeHtml(value) {
+  return String(value ?? "")
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;|&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+function isImageUrl(value) {
+  try {
+    const url = new URL(value);
+    return (url.protocol === "http:" || url.protocol === "https:") && !/\.(?:svg|gif)(?:$|\?)/i.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
+async function searchReferenceImage(prompt) {
+  const query = `${String(prompt).trim()} 角色 设定图 插画`;
+  const searchUrl = `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&form=HDRSC2`;
+  const response = await fetch(searchUrl, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 VELA/1.0",
+      Accept: "text/html,application/xhtml+xml"
+    },
+    signal: AbortSignal.timeout(12000)
+  });
+  if (!response.ok) throw new Error(`Reference image search failed (${response.status}).`);
+  const html = await response.text();
+  const candidates = [];
+  const patterns = [
+    /murl(?:&quot;|"):\s*(?:&quot;|")(.*?)(?:&quot;|")/g,
+    /"murl":"(.*?)"/g
+  ];
+  for (const pattern of patterns) {
+    for (const match of html.matchAll(pattern)) {
+      const url = decodeHtml(match[1]).replace(/\\u002f/g, "/");
+      if (isImageUrl(url) && !candidates.includes(url)) candidates.push(url);
+      if (candidates.length >= 8) break;
+    }
+    if (candidates.length >= 8) break;
+  }
+  if (!candidates.length) throw new Error("No usable reference image was found.");
+  return candidates;
+}
+
+async function downloadReferenceImage(url, tempDirectory) {
+  const response = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0 VELA/1.0", Accept: "image/avif,image/webp,image/png,image/jpeg,image/*" },
+    signal: AbortSignal.timeout(15000)
+  });
+  if (!response.ok) throw new Error(`Reference image download failed (${response.status}).`);
+  const contentType = String(response.headers.get("content-type") ?? "").toLowerCase();
+  if (!contentType.startsWith("image/")) throw new Error("Reference result is not an image.");
+  const contentLength = Number(response.headers.get("content-length") ?? 0);
+  if (contentLength > 12 * 1024 * 1024) throw new Error("Reference image is too large.");
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (!buffer.length || buffer.length > 12 * 1024 * 1024) throw new Error("Reference image size is invalid.");
+  const extension = contentType.includes("png") ? ".png" : ".jpg";
+  const filePath = path.join(tempDirectory, `reference-${crypto.randomUUID()}${extension}`);
+  fs.writeFileSync(filePath, buffer);
+  return filePath;
+}
+
+async function uploadReferenceImage(baseUrl, filePath) {
+  const form = new FormData();
+  form.append("image", new Blob([fs.readFileSync(filePath)], { type: "image/png" }), path.basename(filePath));
+  form.append("overwrite", "true");
+  const response = await fetch(`${baseUrl}/upload/image`, { method: "POST", body: form });
+  if (!response.ok) throw new Error(`ComfyUI reference upload failed (${response.status}).`);
+  const payload = await response.json();
+  const name = String(payload?.name ?? "");
+  if (!name) throw new Error("ComfyUI did not return an uploaded reference filename.");
+  return name;
+}
+
+function removeUploadedReference(uploadedName) {
+  const inputRoot = path.resolve("C:\\AI-Apps\\ComfyUI_windows_portable\\ComfyUI\\input");
+  const candidate = path.resolve(inputRoot, uploadedName);
+  if (!isInside(candidate, inputRoot)) return;
+  if (fs.existsSync(candidate)) fs.rmSync(candidate, { force: true });
+}
+
+async function createReferenceContext(profile, prompt) {
+  if (!fs.existsSync(profile.referenceWorkflowPath)) throw new Error("Reference workflow is not installed.");
+  const tempDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "vela-reference-"));
+  let uploadedName = "";
+  try {
+    const candidates = await searchReferenceImage(prompt);
+    let localPath;
+    let lastError;
+    for (const candidate of candidates) {
+      try {
+        localPath = await downloadReferenceImage(candidate, tempDirectory);
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (!localPath) throw lastError ?? new Error("No downloadable reference image was found.");
+    uploadedName = await uploadReferenceImage(profile.baseUrl, localPath);
+    return { uploadedName, tempDirectory };
+  } catch (error) {
+    fs.rmSync(tempDirectory, { recursive: true, force: true });
+    throw error;
+  }
+}
+
 async function generateComfyImage(config, prompt, settings = {}) {
   const profile = readComfyProfile(config);
-  const workflow = JSON.parse(fs.readFileSync(profile.workflowPath, "utf8"));
-  const node = workflow?.[profile.promptNodeId];
+  const engine = imageEngine(settings);
+  const useReference = engine === "anime" && settings?.reference !== "off" && settings?.referenceSearch !== false && Boolean(settings?.referenceSearch || settings?.reference === "strict" || /(有兽焉|角色|人物|陌生角色|同人|ip-adapter|reference)/i.test(prompt));
+  let referenceContext;
+  let uploadedReferenceName = "";
+  try {
+    if (useReference && fs.existsSync(profile.referenceWorkflowPath)) {
+      referenceContext = await createReferenceContext(profile, prompt);
+      uploadedReferenceName = referenceContext.uploadedName;
+    }
+  } catch (error) {
+    console.warn(`[VELA] Reference search unavailable; falling back to text-only generation: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  const workflowPath = engine === "flux2"
+    ? profile.fluxWorkflowPath
+    : referenceContext ? profile.referenceWorkflowPath : profile.workflowPath;
+  if (!fs.existsSync(workflowPath)) throw new Error(`Image workflow is missing: ${workflowPath}`);
+  const workflow = JSON.parse(fs.readFileSync(workflowPath, "utf8"));
+  const promptNodeId = engine === "flux2" ? "4" : profile.promptNodeId;
+  const promptInputName = engine === "flux2" ? "text" : profile.promptInputName;
+  const node = workflow?.[promptNodeId];
   if (!node?.inputs) throw new Error(`ComfyUI prompt node ${profile.promptNodeId} is invalid.`);
   const route = imageRoute(prompt, settings);
-  node.inputs[profile.promptInputName] = routedImagePrompt(prompt, route);
+  node.inputs[promptInputName] = engine === "flux2" ? routedFluxPrompt(prompt) : routedImagePrompt(prompt, route);
+  const { width, height } = imageDimensions(settings);
+  const steps = imageSteps(settings, engine);
+  if (engine === "flux2") {
+    workflow["7"].inputs.steps = steps;
+    workflow["7"].inputs.width = width;
+    workflow["7"].inputs.height = height;
+    workflow["9"].inputs.width = width;
+    workflow["9"].inputs.height = height;
+    workflow["8"].inputs.noise_seed = crypto.randomInt(1, 2147483647);
+    workflow["12"].inputs.filename_prefix = "VELA-FLUX2";
+  } else {
+    if (workflow["3"]?.inputs) workflow["3"].inputs.steps = steps;
+    if (workflow["5"]?.inputs) {
+      workflow["5"].inputs.width = width;
+      workflow["5"].inputs.height = height;
+    }
+  }
   const checkpointNode = workflow?.["4"];
   if (checkpointNode?.inputs) {
     checkpointNode.inputs.ckpt_name = route === "anime"
       ? "animagine-xl-4.0-opt.safetensors"
       : "RealVisXL_V5.0_fp16.safetensors";
   }
-  const queued = await fetch(`${profile.baseUrl}/prompt`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt: workflow, client_id: `vela-${crypto.randomUUID()}` })
-  });
-  if (!queued.ok) throw new Error(`ComfyUI queue failed (${queued.status}).`);
-  const queuedPayload = await queued.json();
-  const promptId = String(queuedPayload.prompt_id ?? "");
-  if (!promptId) throw new Error("ComfyUI did not return a prompt id.");
-
-  const deadline = Date.now() + profile.timeoutMs;
-  while (Date.now() < deadline) {
-    const history = await fetch(`${profile.baseUrl}/history/${encodeURIComponent(promptId)}`);
-    if (history.ok) {
-      const record = (await history.json())?.[promptId];
-      const images = record?.outputs?.[profile.outputNodeId]?.images;
-      if (Array.isArray(images) && images.length) {
-        return {
-          promptId,
-          outputs: images.filter((item) => item?.filename).map((item) => {
-            const query = new URLSearchParams({
-              filename: String(item.filename),
-              subfolder: String(item.subfolder ?? ""),
-              type: String(item.type ?? "output")
-            });
-            return {
-              filename: String(item.filename),
-              viewUrl: `${profile.baseUrl}/view?${query.toString()}`
-            };
-          })
-        };
-      }
-      if (record?.status?.status_str === "error") throw new Error("ComfyUI reported a generation error.");
+  if (referenceContext && workflow?.[profile.referenceImageNodeId]?.inputs) {
+    workflow[profile.referenceImageNodeId].inputs.image = uploadedReferenceName;
+    if (workflow["10"]?.inputs) {
+      workflow["10"].inputs.weight = settings.reference === "strict" ? 1.0 : 0.86;
+      workflow["10"].inputs.end_at = 1.0;
+      workflow["10"].inputs.weight_type = "standard";
     }
-    await new Promise((resolve) => setTimeout(resolve, Math.max(250, profile.pollIntervalMs)));
   }
-  throw new Error(`ComfyUI generation timed out after ${Math.round(profile.timeoutMs / 1000)} seconds.`);
+  try {
+    const queued = await fetch(`${profile.baseUrl}/prompt`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: workflow, client_id: `vela-${crypto.randomUUID()}` })
+    });
+    if (!queued.ok) throw new Error(`ComfyUI queue failed (${queued.status}).`);
+    const queuedPayload = await queued.json();
+    const promptId = String(queuedPayload.prompt_id ?? "");
+    if (!promptId) throw new Error("ComfyUI did not return a prompt id.");
+
+    const deadline = Date.now() + profile.timeoutMs;
+    while (Date.now() < deadline) {
+      const history = await fetch(`${profile.baseUrl}/history/${encodeURIComponent(promptId)}`);
+      if (history.ok) {
+        const record = (await history.json())?.[promptId];
+        const outputNodeId = engine === "flux2" ? profile.fluxOutputNodeId : profile.outputNodeId;
+        const images = record?.outputs?.[outputNodeId]?.images;
+        if (Array.isArray(images) && images.length) {
+          return {
+            promptId,
+            engine,
+            route,
+            referenceUsed: Boolean(referenceContext),
+            outputs: images.filter((item) => item?.filename).map((item) => {
+              const query = new URLSearchParams({
+                filename: String(item.filename),
+                subfolder: String(item.subfolder ?? ""),
+                type: String(item.type ?? "output")
+              });
+              return {
+                filename: String(item.filename),
+                viewUrl: `${profile.baseUrl}/view?${query.toString()}`
+              };
+            })
+          };
+        }
+        if (record?.status?.status_str === "error") throw new Error("ComfyUI reported a generation error.");
+      }
+      await new Promise((resolve) => setTimeout(resolve, Math.max(250, profile.pollIntervalMs)));
+    }
+    throw new Error(`ComfyUI generation timed out after ${Math.round(profile.timeoutMs / 1000)} seconds.`);
+  } finally {
+    if (uploadedReferenceName) removeUploadedReference(uploadedReferenceName);
+    if (referenceContext?.tempDirectory) fs.rmSync(referenceContext.tempDirectory, { recursive: true, force: true });
+  }
 }
 
 function gatewayIsAvailable(port) {
@@ -247,12 +445,13 @@ function startComfyUi() {
       outputDirectory,
       "--lowvram",
       "--reserve-vram",
-      "1"
+      "1",
+      "--cpu-vae"
     ],
     {
       cwd: path.dirname(mainPath),
       detached: true,
-      stdio: "ignore",
+      stdio: ["ignore", fs.openSync(path.join(outputDirectory, "..", "vela-comfyui.log"), "a"), fs.openSync(path.join(outputDirectory, "..", "vela-comfyui-error.log"), "a")],
       windowsHide: true
     }
   );
@@ -261,11 +460,20 @@ function startComfyUi() {
 }
 
 async function ensureComfyUi() {
-  if (await gatewayIsAvailable(COMFY_PORT)) return;
-  if (!startComfyUi()) return;
-  for (let attempt = 0; attempt < 60; attempt += 1) {
-    if (await gatewayIsAvailable(COMFY_PORT)) return;
-    await new Promise((resolve) => setTimeout(resolve, 500));
+  if (await gatewayIsAvailable(COMFY_PORT)) return true;
+  if (comfyStartPromise) return comfyStartPromise;
+  comfyStartPromise = (async () => {
+    if (!startComfyUi()) return false;
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+      if (await gatewayIsAvailable(COMFY_PORT)) return true;
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    return false;
+  })();
+  try {
+    return await comfyStartPromise;
+  } finally {
+    comfyStartPromise = null;
   }
 }
 
@@ -434,6 +642,10 @@ function createServer(openClaw) {
           sendJson(res, 400, { error: "Image prompt is empty." });
           return;
         }
+        if (!(await ensureComfyUi())) {
+          sendJson(res, 503, { error: "ComfyUI is unavailable. Image generation was not started." });
+          return;
+        }
         const config = JSON.parse(fs.readFileSync(openClaw.configPath, "utf8"));
         const settings = payload?.settings && typeof payload.settings === "object" ? payload.settings : {};
         sendJson(res, 200, await generateComfyImage(config, prompt, settings));
@@ -478,6 +690,63 @@ function createServer(openClaw) {
           });
         } catch {
           sendJson(res, 200, { online: false, running: 0, pending: 0 });
+        }
+        return;
+      }
+
+      if (url.pathname === "/api/ocu/status" && req.method === "GET") {
+        if (!requestIsAuthorized(req, url)) {
+          sendJson(res, 403, { error: "Forbidden" });
+          return;
+        }
+        try {
+          await ensureOcuApi();
+          sendJson(res, 200, await requestOcuJson("/v1/status"));
+        } catch (error) {
+          sendJson(res, 503, {
+            ok: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
+        return;
+      }
+
+      if (url.pathname === "/api/ocu/plans" && req.method === "GET") {
+        if (!requestIsAuthorized(req, url)) {
+          sendJson(res, 403, { error: "Forbidden" });
+          return;
+        }
+        try {
+          await ensureOcuApi();
+          sendJson(res, 200, await requestOcuJson("/v1/plans"));
+        } catch (error) {
+          sendJson(res, 503, {
+            ok: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
+        return;
+      }
+
+      const ocuPlanRoute = url.pathname.match(/^\/api\/ocu\/plans\/([^/]+)(?:\/(show|reflect|run))?$/);
+      if (ocuPlanRoute && (req.method === "GET" || req.method === "POST")) {
+        if (!requestIsAuthorized(req, url)) {
+          sendJson(res, 403, { error: "Forbidden" });
+          return;
+        }
+        const planId = decodeURIComponent(ocuPlanRoute[1]);
+        const operation = ocuPlanRoute[2] ?? "show";
+        const apiPath = operation === "show"
+          ? `/v1/plans/${encodeURIComponent(planId)}`
+          : `/v1/plans/${encodeURIComponent(planId)}/${operation}`;
+        try {
+          await ensureOcuApi();
+          sendJson(res, 200, await requestOcuJson(apiPath, operation === "show" ? "GET" : "POST"));
+        } catch (error) {
+          sendJson(res, 503, {
+            ok: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
         }
         return;
       }
@@ -590,6 +859,109 @@ function createWindow() {
 }
 
 let server;
+let ocuProcess = null;
+let ocuStartPromise = null;
+let comfyStartPromise = null;
+
+function requestOcuJson(requestPath, method = "GET", payload = null, timeoutMs = 5000) {
+  return new Promise((resolve, reject) => {
+    const body = payload == null ? null : Buffer.from(JSON.stringify(payload), "utf8");
+    const request = http.request(
+      {
+        host: APP_HOST,
+        port: OCU_PORT,
+        path: requestPath,
+        method,
+        timeout: timeoutMs,
+        headers: body
+          ? {
+              "Content-Type": "application/json",
+              "Content-Length": body.length
+            }
+          : undefined
+      },
+      (response) => {
+        const chunks = [];
+        response.on("data", (chunk) => chunks.push(chunk));
+        response.on("end", () => {
+          const raw = Buffer.concat(chunks).toString("utf8");
+          let parsed;
+          try {
+            parsed = JSON.parse(raw);
+          } catch (error) {
+            reject(new Error(`OpenClaw-Ultimate API returned invalid JSON (${response.statusCode}).`));
+            return;
+          }
+          if ((response.statusCode ?? 500) >= 400) {
+            reject(new Error(parsed?.error?.message ?? `OpenClaw-Ultimate API failed (${response.statusCode}).`));
+            return;
+          }
+          resolve(parsed);
+        });
+      }
+    );
+    request.once("timeout", () => request.destroy(new Error("OpenClaw-Ultimate API timed out")));
+    request.once("error", reject);
+    if (body) request.write(body);
+    request.end();
+  });
+}
+
+async function ensureOcuApi() {
+  if (ocuStartPromise) return ocuStartPromise;
+  ocuStartPromise = (async () => {
+    try {
+      await requestOcuJson("/v1/status", "GET", null, 1200);
+      return true;
+    } catch {
+      // Start the project's local API only when it is not already available.
+    }
+
+    const projectFile = path.join(OCU_PROJECT_ROOT, "pyproject.toml");
+    if (!fs.existsSync(projectFile)) return false;
+    if (!ocuProcess || ocuProcess.exitCode !== null) {
+      try {
+        const uvCandidates = [
+          process.env.OCU_UV_PATH,
+          path.join(process.env.USERPROFILE ?? "", ".local", "bin", "uv.exe"),
+          "uv"
+        ].filter(Boolean);
+        const uvCommand = uvCandidates.find((candidate) => candidate === "uv" || fs.existsSync(candidate)) ?? "uv";
+        ocuProcess = spawn(
+          uvCommand,
+          ["run", "--project", OCU_PROJECT_ROOT, "ocu", "serve", "--host", APP_HOST, "--port", String(OCU_PORT)],
+          {
+            cwd: OCU_PROJECT_ROOT,
+            windowsHide: true,
+            stdio: "ignore"
+          }
+        );
+        ocuProcess.once("error", () => {
+          ocuProcess = null;
+        });
+      } catch {
+        ocuProcess = null;
+        return false;
+      }
+    }
+
+    const deadline = Date.now() + 12000;
+    while (Date.now() < deadline) {
+      try {
+        await requestOcuJson("/v1/status", "GET", null, 1500);
+        return true;
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, 350));
+      }
+    }
+    return false;
+  })();
+  try {
+    return await ocuStartPromise;
+  } finally {
+    ocuStartPromise = null;
+  }
+}
 
 app.setAppUserModelId("local.vela.desktop");
 
@@ -610,7 +982,6 @@ if (!hasLock) {
     try {
       const openClaw = readOpenClawConfig();
       await ensureGateway(openClaw.port);
-      void ensureComfyUi();
       server = createServer(openClaw);
       server.on("error", (error) => {
         console.error(error);
@@ -628,5 +999,8 @@ if (!hasLock) {
   });
 
   app.on("window-all-closed", () => app.quit());
-  app.on("before-quit", () => server?.close());
+  app.on("before-quit", () => {
+    server?.close();
+    if (ocuProcess && ocuProcess.exitCode === null) ocuProcess.kill();
+  });
 }

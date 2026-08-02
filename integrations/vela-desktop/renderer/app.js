@@ -21,7 +21,10 @@ const translations = {
     imageModeActive: "生图模式已开启",
     imageAspect: "画幅",
     imageQuality: "质量",
-    imageStudioHint: "先搜索分析 · 自动选模型 · 只生成一次",
+    imageStudioHint: "动漫参考 / FLUX.2 Klein · 稳定单次生成",
+    imageEngine: "引擎",
+    engineAnime: "动漫参考",
+    engineFlux: "FLUX.2",
     imageStudioTitle: "图像工作室",
     imageReference: "角色参考",
     imageStyle: "质感",
@@ -34,6 +37,38 @@ const translations = {
     modelSwitching: "正在切换模型…",
     modelSwitched: "模型已切换",
     modelSwitchFailed: "模型切换失败",
+    themeLight: "切换到白天模式",
+    themeDark: "切换到黑夜模式",
+    themeDay: "白天",
+    themeNight: "黑夜",
+    controlCenter: "智能体控制中心",
+    workspaceSyncing: "同步中",
+    workspaceSynced: "已同步",
+    workspaceOffline: "本地 API 离线",
+    workspaceRefresh: "刷新",
+    workspaceEmpty: "还没有已保存的计划",
+    workspaceSelectPlan: "选择一个计划查看步骤、结果和失败诊断",
+    workspaceStatus: "状态",
+    workspaceSteps: "步骤",
+    workspaceUpdated: "更新时间",
+    workspaceNoDetail: "暂无执行详情",
+    statusOnline: "在线",
+    statusOffline: "离线",
+    statusReady: "就绪",
+    statusRunning: "运行中",
+    statusCompleted: "已完成",
+    statusFailed: "失败",
+    statusPending: "等待",
+    reflectionTitle: "Reflection 诊断",
+    reflectionRetryable: "可恢复",
+    reflectionSuggested: "建议",
+    workspaceNav: "工作区",
+    workspaceChat: "对话",
+    workspaceTasks: "任务",
+    workspacePlans: "计划",
+    workspaceRuns: "运行",
+    workspaceModels: "模型",
+    workspaceTools: "工具",
     workspaceLive: "实时工作区",
     workspaceOpen: "展开可视化",
     workspaceClose: "收起可视化",
@@ -56,8 +91,8 @@ const translations = {
     sendFailed: "发送失败",
     sendHint: "Enter 发送",
     qualityHigh: "推荐 22 步",
-    qualityStandard: "快速 10 步",
-    qualityUltra: "极致 38 步",
+    qualityStandard: "快速 5 步",
+    qualityUltra: "极致 30 步",
     referenceHint: "上传参考图可锁定脸型、发型和服装；严格模式优先保留身份",
     textFidelity: "文字清晰",
     textAuto: "智能",
@@ -106,7 +141,10 @@ const translations = {
     imageModeActive: "Image mode enabled",
     imageAspect: "Canvas",
     imageQuality: "Quality",
-    imageStudioHint: "Research first · Auto model routing · One generation",
+    imageStudioHint: "Anime reference / FLUX.2 Klein · Stable single generation",
+    imageEngine: "Engine",
+    engineAnime: "Anime reference",
+    engineFlux: "FLUX.2",
     imageStudioTitle: "Image Studio",
     imageReference: "Character reference",
     imageStyle: "Texture",
@@ -119,6 +157,38 @@ const translations = {
     modelSwitching: "Switching model…",
     modelSwitched: "Model switched",
     modelSwitchFailed: "Could not switch model",
+    themeLight: "Switch to light mode",
+    themeDark: "Switch to dark mode",
+    themeDay: "Light",
+    themeNight: "Dark",
+    controlCenter: "AGENT CONTROL CENTER",
+    workspaceSyncing: "Syncing",
+    workspaceSynced: "Synced",
+    workspaceOffline: "Local API offline",
+    workspaceRefresh: "Refresh",
+    workspaceEmpty: "No saved plans yet",
+    workspaceSelectPlan: "Select a plan to inspect steps, results and failures",
+    workspaceStatus: "Status",
+    workspaceSteps: "Steps",
+    workspaceUpdated: "Updated",
+    workspaceNoDetail: "No execution detail yet",
+    statusOnline: "Online",
+    statusOffline: "Offline",
+    statusReady: "Ready",
+    statusRunning: "Running",
+    statusCompleted: "Completed",
+    statusFailed: "Failed",
+    statusPending: "Pending",
+    reflectionTitle: "Reflection diagnosis",
+    reflectionRetryable: "Retryable",
+    reflectionSuggested: "Suggested action",
+    workspaceNav: "Workspace",
+    workspaceChat: "Chat",
+    workspaceTasks: "Tasks",
+    workspacePlans: "Plans",
+    workspaceRuns: "Runs",
+    workspaceModels: "Models",
+    workspaceTools: "Tools",
     workspaceLive: "Live workspace",
     workspaceOpen: "Open visualizer",
     workspaceClose: "Close visualizer",
@@ -141,8 +211,8 @@ const translations = {
     sendFailed: "Could not send",
     sendHint: "Enter to send",
     qualityHigh: "Recommended · 22",
-    qualityStandard: "Fast · 10",
-    qualityUltra: "Ultra · 38",
+    qualityStandard: "Fast · 5",
+    qualityUltra: "Ultra · 30",
     referenceHint: "Attach a reference to lock face, hair and outfit; strict mode favors identity",
     textFidelity: "Text fidelity",
     textAuto: "Auto",
@@ -212,6 +282,14 @@ const els = {
   sidebarButton: document.querySelector("#sidebar-button"),
   stopButton: document.querySelector("#stop-button"),
   themeButton: document.querySelector("#theme-button"),
+  workspaceNav: document.querySelector("#workspace-nav"),
+  workspacePanel: document.querySelector("#workspace-panel"),
+  workspacePanelTitle: document.querySelector("#workspace-panel-title"),
+  workspacePanelSync: document.querySelector("#workspace-panel-sync"),
+  workspacePanelRefresh: document.querySelector("#workspace-panel-refresh"),
+  workspacePanelMetrics: document.querySelector("#workspace-panel-metrics"),
+  workspacePanelList: document.querySelector("#workspace-panel-list"),
+  workspacePanelDetail: document.querySelector("#workspace-panel-detail"),
   toastRegion: document.querySelector("#toast-region")
 };
 
@@ -247,6 +325,7 @@ const defaultSession = {
 
 const defaultImageSettings = {
   aspect: "landscape",
+  engine: "anime",
   quality: "high",
   reference: "smart",
   style: "auto",
@@ -278,8 +357,24 @@ const state = {
   refreshTimer: null,
   renderedMessagesKey: "",
   sessions: loadSessions(),
-  theme: localStorage.getItem("vela.desktop.theme") === "light" ? "light" : "dark"
+  theme: loadTheme(),
+  workspaceView: "chat",
+  workspaceData: {
+    loading: false,
+    error: "",
+    status: null,
+    plans: [],
+    selectedPlanId: "",
+    detail: null
+  },
+  workspaceRefreshTimer: null
 };
+
+function loadTheme() {
+  const saved = localStorage.getItem("vela.desktop.theme");
+  if (saved === "light" || saved === "dark") return saved;
+  return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
+}
 
 let currentSessionKey =
   localStorage.getItem("openclaw.desktop.currentSession") ??
@@ -297,6 +392,7 @@ function loadImageSettings() {
       aspect: ["square", "landscape", "portrait", "classic", "vertical", "photo"].includes(parsed.aspect)
         ? parsed.aspect
         : defaultImageSettings.aspect,
+      engine: ["anime", "flux2"].includes(parsed.engine) ? parsed.engine : defaultImageSettings.engine,
       quality: ["standard", "high", "ultra"].includes(parsed.quality)
         ? parsed.quality
         : defaultImageSettings.quality,
@@ -849,6 +945,11 @@ function renderImageStudio() {
     button.classList.toggle("is-active", active);
     button.setAttribute("aria-pressed", String(active));
   });
+  els.imageStudio.querySelectorAll("[data-image-engine]").forEach((button) => {
+    const active = button.dataset.imageEngine === state.imageSettings.engine;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
   els.imageStudio.querySelectorAll("[data-image-style]").forEach((button) => {
     const active = button.dataset.imageStyle === state.imageSettings.style;
     button.classList.toggle("is-active", active);
@@ -871,6 +972,192 @@ function renderImageStudio() {
   });
 }
 
+function renderWorkspaceNav() {
+  els.workspaceNav?.querySelectorAll("[data-workspace-view]").forEach((button) => {
+    const active = button.dataset.workspaceView === state.workspaceView;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-current", active ? "page" : "false");
+  });
+  if (els.app) els.app.dataset.workspaceView = state.workspaceView;
+}
+
+function workspaceLabelKey(view) {
+  return {
+    tasks: "workspaceTasks",
+    plans: "workspacePlans",
+    runs: "workspaceRuns",
+    models: "workspaceModels",
+    tools: "workspaceTools"
+  }[view] ?? "workspaceTasks";
+}
+
+function statusLabel(status) {
+  return {
+    ready: t("statusReady"),
+    running: t("statusRunning"),
+    completed: t("statusCompleted"),
+    failed: t("statusFailed"),
+    pending: t("statusPending"),
+    paused: state.language === "zh" ? "已暂停" : "Paused",
+    cancelled: state.language === "zh" ? "已取消" : "Cancelled",
+    draft: state.language === "zh" ? "草稿" : "Draft"
+  }[String(status ?? "").toLowerCase()] ?? String(status ?? "-");
+}
+
+function apiData(payload) {
+  return payload?.data ?? payload ?? {};
+}
+
+function formatWorkspaceTime(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : formatTime(date.getTime());
+}
+
+function renderWorkspacePanel() {
+  if (!els.workspacePanel) return;
+  const visible = state.workspaceView !== "chat";
+  els.workspacePanel.hidden = !visible;
+  if (!visible) return;
+
+  const data = state.workspaceData;
+  els.workspacePanelTitle.textContent = t(workspaceLabelKey(state.workspaceView));
+  els.workspacePanelSync.textContent = data.loading
+    ? t("workspaceSyncing")
+    : data.error
+      ? t("workspaceOffline")
+      : t("workspaceSynced");
+  els.workspacePanelSync.classList.toggle("is-error", Boolean(data.error));
+
+  const planCount = data.plans.length;
+  const components = Array.isArray(data.status?.components) ? data.status.components : [];
+  const onlineCount = components.filter((item) => ["online", "ready", "healthy"].includes(String(item.state))).length;
+  const metrics = [
+    [t("workspaceStatus"), data.status?.state ?? (data.error ? t("statusOffline") : t("statusOnline"))],
+    [t("workspaceSteps"), state.workspaceView === "models" ? String(state.models.items.length) : String(planCount)],
+    [t("workspaceUpdated"), formatWorkspaceTime(data.plans[0]?.updated_at ?? data.plans[0]?.updatedAt)]
+  ];
+  els.workspacePanelMetrics.innerHTML = metrics
+    .map(([label, value]) => `<div class="workspace-metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`)
+    .join("");
+
+  if (state.workspaceView === "models") {
+    els.workspacePanelList.innerHTML = state.models.items.length
+      ? state.models.items.map((item) => `
+          <button class="workspace-card workspace-card--model" type="button">
+            <span class="workspace-card__signal"></span>
+            <span><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.id)}</small></span>
+            <em>${escapeHtml(t("statusOnline"))}</em>
+          </button>`).join("")
+      : `<div class="workspace-empty">${escapeHtml(t("workspaceEmpty"))}</div>`;
+    els.workspacePanelDetail.innerHTML = `
+      <div class="workspace-detail__hero"><span class="workspace-detail__eyebrow">${escapeHtml(t("workspaceModels"))}</span><h3>${escapeHtml(state.models.primary || "-")}</h3><p>${escapeHtml(state.language === "zh" ? "当前由 OpenClaw 提供模型路由；生图由本机 ComfyUI 负责。" : "OpenClaw routes chat models locally; ComfyUI handles image generation.")}</p></div>
+      <div class="workspace-component-list">${components.map((item) => `<div><span>${escapeHtml(item.name ?? "component")}</span><strong class="status-pill status-pill--${escapeHtml(String(item.state ?? "offline"))}">${escapeHtml(String(item.state ?? "offline"))}</strong></div>`).join("") || `<div class="workspace-empty">${escapeHtml(t("workspaceNoDetail"))}</div>`}</div>`;
+    return;
+  }
+
+  if (state.workspaceView === "tools") {
+    els.workspacePanelList.innerHTML = components.length
+      ? components.map((item) => `
+          <div class="workspace-card workspace-card--tool">
+            <span class="workspace-card__icon">⌘</span>
+            <span><strong>${escapeHtml(item.name ?? "Local component")}</strong><small>${escapeHtml(item.detail ?? "")}</small></span>
+            <em>${escapeHtml(String(item.state ?? "offline"))}</em>
+          </div>`).join("")
+      : `<div class="workspace-empty">${escapeHtml(t("workspaceNoDetail"))}</div>`;
+    els.workspacePanelDetail.innerHTML = `<div class="workspace-detail__hero"><span class="workspace-detail__eyebrow">${escapeHtml(t("workspaceTools"))}</span><h3>${onlineCount} / ${components.length || 0}</h3><p>${escapeHtml(state.language === "zh" ? "工具和本地服务状态来自真实诊断接口。" : "Tool and local service status comes from the real diagnostics API.")}</p></div>`;
+    return;
+  }
+
+  els.workspacePanelList.innerHTML = planCount
+    ? data.plans.map((plan) => {
+        const active = plan.id === data.selectedPlanId;
+        const steps = Array.isArray(plan.steps) ? plan.steps : [];
+        return `<button class="workspace-card workspace-card--plan${active ? " is-active" : ""}" type="button" data-plan-id="${escapeHtml(plan.id)}">
+          <span class="workspace-card__signal workspace-card__signal--${escapeHtml(String(plan.status ?? "pending"))}"></span>
+          <span><strong>${escapeHtml(plan.goal ?? plan.id)}</strong><small>${steps.length} ${escapeHtml(t("workspaceSteps"))} · ${escapeHtml(formatWorkspaceTime(plan.updated_at ?? plan.updatedAt))}</small></span>
+          <em class="status-pill status-pill--${escapeHtml(String(plan.status ?? "pending"))}">${escapeHtml(statusLabel(plan.status))}</em>
+        </button>`;
+      }).join("")
+    : `<div class="workspace-empty">${escapeHtml(data.error || t("workspaceEmpty"))}</div>`;
+
+  const detail = data.detail;
+  if (!detail?.plan) {
+    els.workspacePanelDetail.innerHTML = `<div class="workspace-detail__empty"><span>◇</span><p>${escapeHtml(t("workspaceSelectPlan"))}</p></div>`;
+    return;
+  }
+  const plan = detail.plan;
+  const steps = Array.isArray(plan.steps) ? plan.steps : [];
+  const reflections = Array.isArray(detail.reflections) ? detail.reflections : [];
+  els.workspacePanelDetail.innerHTML = `
+    <div class="workspace-detail__hero">
+      <span class="workspace-detail__eyebrow">${escapeHtml(plan.id)}</span>
+      <h3>${escapeHtml(plan.goal)}</h3>
+      <div class="workspace-detail__meta"><span class="status-pill status-pill--${escapeHtml(String(plan.status))}">${escapeHtml(statusLabel(plan.status))}</span><span>${steps.length} ${escapeHtml(t("workspaceSteps"))}</span><span>${escapeHtml(formatWorkspaceTime(plan.updated_at ?? plan.updatedAt))}</span></div>
+    </div>
+    <div class="workspace-steps">${steps.map((step, index) => `
+      <div class="workspace-step">
+        <span class="workspace-step__index">${index + 1}</span>
+        <div><strong>${escapeHtml(step.title ?? step.id)}</strong><p>${escapeHtml(step.description ?? "")}</p>${step.result ? `<pre class="workspace-step__result">${escapeHtml(String(step.result).slice(0, 700))}</pre>` : ""}${step.error ? `<pre class="workspace-step__error">${escapeHtml(String(step.error).slice(0, 700))}</pre>` : ""}</div>
+        <em class="status-pill status-pill--${escapeHtml(String(step.status ?? "pending"))}">${escapeHtml(statusLabel(step.status))}</em>
+      </div>`).join("")}</div>
+    ${reflections.length ? `<section class="workspace-reflections"><h4>${escapeHtml(t("reflectionTitle"))}</h4>${reflections.map((item) => `<div class="workspace-reflection"><strong>${escapeHtml(item.failure_type ?? "unknown")}</strong><p>${escapeHtml(item.root_cause ?? item.summary ?? "")}</p><span>${escapeHtml(t("reflectionRetryable"))}: ${item.retryable ? "Yes" : "No"} · ${escapeHtml(t("reflectionSuggested"))}: ${escapeHtml(item.suggested_action ?? "-")}</span></div>`).join("")}</section>` : ""}`;
+}
+
+async function refreshWorkspace() {
+  if (state.workspaceView === "chat" || state.workspaceData.loading) return;
+  state.workspaceData.loading = true;
+  renderWorkspacePanel();
+  try {
+    const headers = { "X-OpenClaw-App-Key": appKey };
+    const [statusResponse, plansResponse] = await Promise.all([
+      fetch("/api/ocu/status", { headers, cache: "no-store" }),
+      fetch("/api/ocu/plans", { headers, cache: "no-store" })
+    ]);
+    if (!statusResponse.ok || !plansResponse.ok) throw new Error("Local Agent API is unavailable.");
+    const statusPayload = await statusResponse.json();
+    const plansPayload = await plansResponse.json();
+    state.workspaceData.status = apiData(statusPayload);
+    state.workspaceData.plans = Array.isArray(apiData(plansPayload).plans) ? apiData(plansPayload).plans : [];
+    state.workspaceData.error = "";
+    const selected = state.workspaceData.plans.find((plan) => plan.id === state.workspaceData.selectedPlanId) ?? state.workspaceData.plans[0];
+    if (selected) await selectWorkspacePlan(selected.id, false);
+  } catch (error) {
+    state.workspaceData.error = error instanceof Error ? error.message : String(error);
+  } finally {
+    state.workspaceData.loading = false;
+    renderWorkspacePanel();
+  }
+}
+
+async function selectWorkspacePlan(planId, redraw = true) {
+  state.workspaceData.selectedPlanId = planId;
+  if (redraw) renderWorkspacePanel();
+  try {
+    const response = await fetch(`/api/ocu/plans/${encodeURIComponent(planId)}`, {
+      headers: { "X-OpenClaw-App-Key": appKey },
+      cache: "no-store"
+    });
+    if (!response.ok) throw new Error("Could not load plan detail.");
+    state.workspaceData.detail = apiData(await response.json());
+  } catch (error) {
+    state.workspaceData.detail = null;
+    state.workspaceData.error = error instanceof Error ? error.message : String(error);
+  }
+  renderWorkspacePanel();
+}
+
+function syncWorkspaceTimer() {
+  if (state.workspaceView === "chat") {
+    if (state.workspaceRefreshTimer) window.clearInterval(state.workspaceRefreshTimer);
+    state.workspaceRefreshTimer = null;
+    return;
+  }
+  if (!state.workspaceRefreshTimer) {
+    state.workspaceRefreshTimer = window.setInterval(() => void refreshWorkspace(), 5000);
+  }
+}
+
 function applyLanguage() {
   document.documentElement.lang = state.language === "zh" ? "zh-CN" : "en";
   document.querySelectorAll("[data-i18n]").forEach((node) => {
@@ -885,6 +1172,9 @@ function applyLanguage() {
 
 function renderAll(forceScroll = false) {
   document.documentElement.dataset.theme = state.theme;
+  document.documentElement.style.colorScheme = state.theme;
+  els.themeButton?.setAttribute("aria-label", state.theme === "dark" ? t("themeLight") : t("themeDark"));
+  if (els.themeButton) els.themeButton.title = state.theme === "dark" ? t("themeLight") : t("themeDark");
   els.composer.classList.toggle("is-image-mode", state.imageMode);
   els.imageModeButton.classList.toggle("is-active", state.imageMode);
   renderImageStudio();
@@ -896,6 +1186,9 @@ function renderAll(forceScroll = false) {
   renderMessages(forceScroll);
   renderModelPicker();
   renderCommandDeck();
+  renderWorkspaceNav();
+  renderWorkspacePanel();
+  syncWorkspaceTimer();
 }
 
 function renderModelPicker() {
@@ -1408,9 +1701,29 @@ els.languageButton.addEventListener("click", () => {
   applyLanguage();
 });
 els.themeButton.addEventListener("click", () => {
-  state.theme = state.theme === "light" ? "dark" : "light";
+  state.theme = state.theme === "dark" ? "light" : "dark";
   localStorage.setItem("vela.desktop.theme", state.theme);
+  document.documentElement.classList.add("theme-transitioning");
+  window.setTimeout(() => document.documentElement.classList.remove("theme-transitioning"), 420);
   renderAll();
+});
+els.workspaceNav?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-workspace-view]");
+  if (!button) return;
+  state.workspaceView = button.dataset.workspaceView;
+  renderAll();
+  if (state.workspaceView === "chat") {
+    els.composerInput.focus();
+    return;
+  }
+  const label = button.querySelector("[data-i18n]")?.textContent ?? button.dataset.workspaceView;
+  toast(`${label} · ${state.language === "zh" ? "正在同步本地 Agent" : "Syncing local agent"}`);
+  void refreshWorkspace();
+});
+els.workspacePanelRefresh?.addEventListener("click", () => void refreshWorkspace());
+els.workspacePanelList?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-plan-id]");
+  if (button) void selectWorkspacePlan(button.dataset.planId);
 });
 els.sidebarButton.addEventListener("click", () => els.sidebar.classList.toggle("is-open"));
 els.retryButton.addEventListener("click", connectGateway);
@@ -1434,6 +1747,7 @@ els.imageStudio.addEventListener("click", (event) => {
   const button = event.target.closest("button");
   if (!button) return;
   if (button.dataset.imageAspect) state.imageSettings.aspect = button.dataset.imageAspect;
+  if (button.dataset.imageEngine) state.imageSettings.engine = button.dataset.imageEngine;
   if (button.dataset.imageStyle) state.imageSettings.style = button.dataset.imageStyle;
   if (button.dataset.imageQuality) state.imageSettings.quality = button.dataset.imageQuality;
   if (button.dataset.imageReference) state.imageSettings.reference = button.dataset.imageReference;

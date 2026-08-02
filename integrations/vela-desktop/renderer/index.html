@@ -5,15 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
     <title>VELA</title>
-    <link rel="stylesheet" href="/styles.css?v=4.3.0" />
-    <link rel="stylesheet" href="/vela.css?v=4.3.0" />
+        <link rel="stylesheet" href="/styles.css?v=4.7.0" />
+        <link rel="stylesheet" href="/vela.css?v=4.7.0" />
   </head>
   <body>
     <div id="app" class="app-shell">
       <header class="titlebar">
         <div class="titlebar__brand">
           <span class="brand-mark" aria-hidden="true">
-            <img class="vela-logo" src="/vela-icon.png?v=4.3.0" alt="" />
+            <img class="vela-logo" src="/vela-icon.png?v=4.7.0" alt="" />
           </span>
           <span>VELA</span>
           <small>LOCAL AGENT</small>
@@ -30,7 +30,35 @@
           </button>
         </div>
 
-        <div class="sidebar__section-label" data-i18n="recents">最近</div>
+        <div class="sidebar__section-label" data-i18n="workspaceNav">工作区</div>
+        <nav class="workspace-nav" id="workspace-nav" aria-label="Workspace navigation">
+          <button class="workspace-nav__item is-active" type="button" data-workspace-view="chat">
+            <span class="workspace-nav__icon">⌁</span>
+            <span data-i18n="workspaceChat">对话</span>
+          </button>
+          <button class="workspace-nav__item" type="button" data-workspace-view="tasks">
+            <span class="workspace-nav__icon">◌</span>
+            <span data-i18n="workspaceTasks">任务</span>
+          </button>
+          <button class="workspace-nav__item" type="button" data-workspace-view="plans">
+            <span class="workspace-nav__icon">◇</span>
+            <span data-i18n="workspacePlans">计划</span>
+          </button>
+          <button class="workspace-nav__item" type="button" data-workspace-view="runs">
+            <span class="workspace-nav__icon">↗</span>
+            <span data-i18n="workspaceRuns">运行</span>
+          </button>
+          <button class="workspace-nav__item" type="button" data-workspace-view="models">
+            <span class="workspace-nav__icon">✦</span>
+            <span data-i18n="workspaceModels">模型</span>
+          </button>
+          <button class="workspace-nav__item" type="button" data-workspace-view="tools">
+            <span class="workspace-nav__icon">⌘</span>
+            <span data-i18n="workspaceTools">工具</span>
+          </button>
+        </nav>
+
+        <div class="sidebar__section-label sidebar__section-label--recent" data-i18n="recents">最近</div>
         <nav class="session-list" id="session-list" aria-label="Sessions"></nav>
 
         <div class="sidebar__footer">
@@ -42,7 +70,7 @@
             <button class="icon-button icon-button--sidebar" id="language-button" type="button" aria-label="Language">
               <span id="language-label">EN</span>
             </button>
-            <button class="icon-button icon-button--sidebar" id="theme-button" type="button" aria-label="Theme">
+            <button class="icon-button icon-button--sidebar" id="theme-button" type="button" aria-label="Theme" title="切换到白天模式">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z" />
               </svg>
@@ -104,6 +132,24 @@
           </div>
         </section>
 
+        <section class="workspace-panel" id="workspace-panel" hidden aria-label="Agent control center">
+          <header class="workspace-panel__header">
+            <div>
+              <span class="workspace-panel__eyebrow" data-i18n="controlCenter">AGENT CONTROL CENTER</span>
+              <h2 id="workspace-panel-title" data-i18n="workspaceTasks">任务</h2>
+            </div>
+            <div class="workspace-panel__actions">
+              <span class="workspace-panel__sync" id="workspace-panel-sync" data-i18n="workspaceSyncing">同步中</span>
+              <button class="text-button" id="workspace-panel-refresh" type="button" data-i18n="workspaceRefresh">刷新</button>
+            </div>
+          </header>
+          <div class="workspace-panel__metrics" id="workspace-panel-metrics"></div>
+          <div class="workspace-panel__body">
+            <div class="workspace-panel__list" id="workspace-panel-list"></div>
+            <article class="workspace-panel__detail" id="workspace-panel-detail"></article>
+          </div>
+        </section>
+
         <section class="chat-scroll" id="chat-scroll">
           <div class="chat-content" id="chat-content"></div>
         </section>
@@ -115,9 +161,17 @@
               <div class="image-studio__header">
                 <div>
                   <strong data-i18n="imageStudioTitle">图像工作室</strong>
-                  <span data-i18n="imageStudioHint">角色参考 · RealVisXL · 低占用</span>
+                  <span data-i18n="imageStudioHint">动漫参考 / FLUX.2 Klein · 稳定单次生成</span>
                 </div>
                 <span class="image-studio__badge">4K</span>
+              </div>
+
+              <div class="image-studio__group">
+                <span class="image-studio__label" data-i18n="imageEngine">引擎</span>
+                <div class="image-studio__choices">
+                  <button class="studio-choice studio-choice--text" type="button" data-image-engine="anime" data-i18n="engineAnime">动漫参考</button>
+                  <button class="studio-choice studio-choice--text" type="button" data-image-engine="flux2" data-i18n="engineFlux">FLUX.2</button>
+                </div>
               </div>
 
               <div class="image-studio__group">
@@ -149,9 +203,9 @@
                 <div class="image-studio__group image-studio__group--quality">
                   <span class="image-studio__label" data-i18n="imageQuality">质量</span>
                   <div class="image-studio__choices">
-                    <button class="studio-choice studio-choice--text" type="button" data-image-quality="standard" data-i18n="qualityStandard">快速 10 步</button>
+                    <button class="studio-choice studio-choice--text" type="button" data-image-quality="standard" data-i18n="qualityStandard">快速 5 步</button>
                     <button class="studio-choice studio-choice--text" type="button" data-image-quality="high" data-i18n="qualityHigh">推荐 28 步</button>
-                    <button class="studio-choice studio-choice--text" type="button" data-image-quality="ultra" data-i18n="qualityUltra">极致 38 步</button>
+                    <button class="studio-choice studio-choice--text" type="button" data-image-quality="ultra" data-i18n="qualityUltra">极致 30 步</button>
                   </div>
                 </div>
               </div>
@@ -238,6 +292,6 @@
       />
       <div class="toast-region" id="toast-region" aria-live="polite"></div>
     </div>
-    <script type="module" src="/app.js?v=4.3.0"></script>
+    <script type="module" src="/app.js?v=4.7.0"></script>
   </body>
 </html>
