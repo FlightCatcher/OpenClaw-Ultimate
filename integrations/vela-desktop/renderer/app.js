@@ -24,6 +24,7 @@ const translations = {
     imageStudioHint: "动漫参考 / FLUX.2 Klein · 稳定单次生成",
     imageEngine: "引擎",
     engineAnime: "动漫参考",
+    engineFast: "快速 SDXL",
     engineFlux: "FLUX.2",
     imageStudioTitle: "图像工作室",
     imageReference: "角色参考",
@@ -144,6 +145,7 @@ const translations = {
     imageStudioHint: "Anime reference / FLUX.2 Klein · Stable single generation",
     imageEngine: "Engine",
     engineAnime: "Anime reference",
+    engineFast: "Fast SDXL",
     engineFlux: "FLUX.2",
     imageStudioTitle: "Image Studio",
     imageReference: "Character reference",
@@ -392,7 +394,7 @@ function loadImageSettings() {
       aspect: ["square", "landscape", "portrait", "classic", "vertical", "photo"].includes(parsed.aspect)
         ? parsed.aspect
         : defaultImageSettings.aspect,
-      engine: ["anime", "flux2"].includes(parsed.engine) ? parsed.engine : defaultImageSettings.engine,
+      engine: ["anime", "ssd1b", "flux2"].includes(parsed.engine) ? parsed.engine : defaultImageSettings.engine,
       quality: ["standard", "high", "ultra"].includes(parsed.quality)
         ? parsed.quality
         : defaultImageSettings.quality,

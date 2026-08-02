@@ -155,6 +155,7 @@ function routedFluxPrompt(prompt) {
 
 function imageEngine(settings = {}) {
   const requested = String(settings?.engine ?? "anime").toLowerCase();
+  if (["ssd1b", "ssd-1b", "fast", "sdxl"].includes(requested)) return "ssd1b";
   return requested === "flux" || requested === "flux2" ? "flux2" : "anime";
 }
 
@@ -174,6 +175,8 @@ function imageDimensions(settings = {}) {
 function imageSteps(settings = {}, engine = "anime") {
   const values = engine === "flux2"
     ? { standard: 5, high: 8, ultra: 12 }
+    : engine === "ssd1b"
+      ? { standard: 6, high: 10, ultra: 14 }
     : { standard: 10, high: 22, ultra: 30 };
   return values[String(settings?.quality ?? "high")] ?? values.high;
 }
@@ -331,9 +334,11 @@ async function generateComfyImage(config, prompt, settings = {}) {
   }
   const checkpointNode = workflow?.["4"];
   if (checkpointNode?.inputs) {
-    checkpointNode.inputs.ckpt_name = route === "anime"
-      ? "animagine-xl-4.0-opt.safetensors"
-      : "RealVisXL_V5.0_fp16.safetensors";
+    checkpointNode.inputs.ckpt_name = engine === "ssd1b"
+      ? "SSD-1B-A1111.safetensors"
+      : route === "anime"
+        ? "animagine-xl-4.0-opt.safetensors"
+        : "Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors";
   }
   if (referenceContext && workflow?.[profile.referenceImageNodeId]?.inputs) {
     workflow[profile.referenceImageNodeId].inputs.image = uploadedReferenceName;
