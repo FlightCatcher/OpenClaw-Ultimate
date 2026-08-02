@@ -1107,7 +1107,7 @@ async function sendMessage() {
           "Content-Type": "application/json",
           "X-OpenClaw-App-Key": appKey
         },
-        body: JSON.stringify({ prompt: rawText })
+        body: JSON.stringify({ prompt: rawText, settings: state.imageSettings })
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || t("sendFailed"));

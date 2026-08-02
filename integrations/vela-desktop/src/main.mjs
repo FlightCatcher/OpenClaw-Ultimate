@@ -121,12 +121,39 @@ function readComfyProfile(config) {
   };
 }
 
-async function generateComfyImage(config, prompt) {
+function imageRoute(prompt, settings = {}) {
+  const style = String(settings?.style ?? "auto").toLowerCase();
+  const value = String(prompt ?? "").toLowerCase();
+  if (style === "anime" || style === "illustration" || /(动漫|二次元|国漫|有兽焉|插画|拟人|兽人|anime|manga|anthropomorphic|cartoon)/i.test(value)) {
+    return "anime";
+  }
+  if (style === "photo" || style === "natural" || /(写实|真实|摄影|照片|野生动物|photoreal|realistic|wildlife|portrait)/i.test(value)) {
+    return "realistic";
+  }
+  return "anime";
+}
+
+function routedImagePrompt(prompt, route) {
+  const cleaned = String(prompt ?? "").trim();
+  if (route === "realistic") {
+    return `${cleaned}, photorealistic, natural lighting, realistic material and skin or fur detail, professional photography, sharp subject, no text, no watermark`;
+  }
+  return `masterpiece, best quality, anime illustration, clean lineart, expressive character design, cel shading, vivid but coherent colors, ${cleaned}, no text, no watermark`;
+}
+
+async function generateComfyImage(config, prompt, settings = {}) {
   const profile = readComfyProfile(config);
   const workflow = JSON.parse(fs.readFileSync(profile.workflowPath, "utf8"));
   const node = workflow?.[profile.promptNodeId];
   if (!node?.inputs) throw new Error(`ComfyUI prompt node ${profile.promptNodeId} is invalid.`);
-  node.inputs[profile.promptInputName] = prompt.trim();
+  const route = imageRoute(prompt, settings);
+  node.inputs[profile.promptInputName] = routedImagePrompt(prompt, route);
+  const checkpointNode = workflow?.["4"];
+  if (checkpointNode?.inputs) {
+    checkpointNode.inputs.ckpt_name = route === "anime"
+      ? "animagine-xl-4.0-opt.safetensors"
+      : "RealVisXL_V5.0_fp16.safetensors";
+  }
   const queued = await fetch(`${profile.baseUrl}/prompt`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -408,7 +435,8 @@ function createServer(openClaw) {
           return;
         }
         const config = JSON.parse(fs.readFileSync(openClaw.configPath, "utf8"));
-        sendJson(res, 200, await generateComfyImage(config, prompt));
+        const settings = payload?.settings && typeof payload.settings === "object" ? payload.settings : {};
+        sendJson(res, 200, await generateComfyImage(config, prompt, settings));
         return;
       }
 
