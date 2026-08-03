@@ -10,6 +10,10 @@ const translations = {
     analyzeFileHint: "图片、文档或音视频",
     attach: "文件",
     connected: "已连接",
+    healthChecking: "本地服务检查中",
+    healthReady: "VELA 1.5 · 就绪",
+    healthDegraded: "VELA 1.5 · 部分服务离线",
+    healthMemory: "内存压力较高",
     connecting: "正在连接",
     disconnected: "连接中断",
     dropFiles: "释放以上传文件",
@@ -131,6 +135,10 @@ const translations = {
     analyzeFileHint: "Images, docs, audio or video",
     attach: "Attach",
     connected: "Connected",
+    healthChecking: "Checking local services",
+    healthReady: "VELA 1.5 · Ready",
+    healthDegraded: "VELA 1.5 · Degraded",
+    healthMemory: "High memory pressure",
     connecting: "Connecting",
     disconnected: "Disconnected",
     dropFiles: "Drop files to upload",
@@ -276,6 +284,7 @@ const els = {
   deckMode: document.querySelector("#deck-mode"),
   deckSession: document.querySelector("#deck-session"),
   deckHistory: document.querySelector("#deck-history"),
+  healthBadge: document.querySelector("#health-badge"),
   newChatButton: document.querySelector("#new-chat-button"),
   retryButton: document.querySelector("#retry-button"),
   sendButton: document.querySelector("#send-button"),
@@ -348,6 +357,8 @@ const state = {
   imageQueueSeen: false,
   imageStartedAt: 0,
   imageStatusTimer: null,
+  healthTimer: null,
+  health: { loading: true, ok: false, services: {}, resources: null },
   imageSettings: loadImageSettings(),
   models: { primary: "", items: [] },
   language: localStorage.getItem("openclaw.desktop.language") === "en" ? "en" : "zh",
@@ -994,6 +1005,49 @@ function renderConnection() {
   els.retryButton.hidden = state.connected;
 }
 
+function renderHealthBadge() {
+  if (!els.healthBadge) return;
+  const health = state.health;
+  const pressure = Boolean(health.resources?.memoryPressure);
+  const ready = Boolean(health.ok) && !pressure;
+  els.healthBadge.classList.toggle("is-ready", ready);
+  els.healthBadge.classList.toggle("is-warning", !ready);
+  els.healthBadge.textContent = health.loading
+    ? t("healthChecking")
+    : pressure
+      ? t("healthMemory")
+      : ready
+        ? t("healthReady")
+        : t("healthDegraded");
+  const services = Object.entries(health.services ?? {})
+    .map(([name, item]) => `${name}: ${item?.state ?? "offline"}`)
+    .join(" · ");
+  const memory = health.resources
+    ? `${health.resources.memoryFreeGb}/${health.resources.memoryTotalGb} GB free`
+    : "";
+  els.healthBadge.title = [services, memory].filter(Boolean).join("\n");
+}
+
+async function refreshHealth() {
+  try {
+    const response = await fetch("/api/health", {
+      headers: { "X-OpenClaw-App-Key": appKey },
+      cache: "no-store"
+    });
+    if (!response.ok) throw new Error("Health check unavailable");
+    state.health = { loading: false, ...await response.json() };
+  } catch {
+    state.health = { loading: false, ok: false, services: {}, resources: null };
+  }
+  renderHealthBadge();
+}
+
+function startHealthPolling() {
+  if (state.healthTimer) window.clearInterval(state.healthTimer);
+  void refreshHealth();
+  state.healthTimer = window.setInterval(() => void refreshHealth(), 12000);
+}
+
 function renderAttachments() {
   els.attachmentStrip.hidden = state.attachments.length === 0;
   els.attachmentStrip.innerHTML = state.attachments
@@ -1273,6 +1327,7 @@ function renderAll(forceScroll = false) {
   renderSessions();
   renderHeader();
   renderConnection();
+  renderHealthBadge();
   renderAttachments();
   renderMessages(forceScroll);
   renderModelPicker();
@@ -1550,11 +1605,24 @@ async function sendMessage() {
 
 async function abortRun() {
   if (!state.client || !state.connected || !state.pending) return;
+  if (state.activeImageRun) {
+    try {
+      await fetch("/api/image-cancel", {
+        method: "POST",
+        headers: { "X-OpenClaw-App-Key": appKey }
+      });
+      toast(state.language === "zh" ? "正在停止生图任务" : "Stopping image generation");
+    } catch {
+      // The local job may already have completed.
+    }
+  }
   try {
-    await state.client.request("chat.abort", {
-      sessionKey: currentSessionKey,
-      ...(state.activeRunId ? { runId: state.activeRunId } : {})
-    });
+    if (!state.activeImageRun) {
+      await state.client.request("chat.abort", {
+        sessionKey: currentSessionKey,
+        ...(state.activeRunId ? { runId: state.activeRunId } : {})
+      });
+    }
   } catch {
     // The run may already have completed.
   }
@@ -1758,6 +1826,7 @@ async function connectGateway() {
       onHello: () => {
         state.connected = true;
         renderConnection();
+        startHealthPolling();
         renderModelPicker();
         startPolling();
         void refreshHistory(true);

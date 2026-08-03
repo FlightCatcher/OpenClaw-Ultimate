@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 
 const APP_PORT = 18790;
 const APP_HOST = "127.0.0.1";
+const VELA_RELEASE = "1.5.0";
 const COMFY_PORT = 8188;
 const OCU_PORT = 8765;
 const OCU_PROJECT_ROOT = process.env.OCU_PROJECT_ROOT ?? "E:\\Projects\\OpenClaw-Ultimate";
@@ -503,6 +504,7 @@ async function upscaleGeneratedOutputs(profile, images, settings, route) {
   const tempDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "vela-upscale-"));
   const uploadedNames = [];
   try {
+    throwIfImageCancelled();
     const resultImages = [];
     for (const source of images) {
       const sourcePath = await downloadComfyImage(profile, source, tempDirectory);
@@ -544,8 +546,14 @@ async function upscaleGeneratedOutputs(profile, images, settings, route) {
       if (!queued.ok) throw new Error(`ComfyUI upscale queue failed (${queued.status}).`);
       const promptId = String((await queued.json())?.prompt_id ?? "");
       if (!promptId) throw new Error("ComfyUI did not return an upscale prompt id.");
+      if (activeImageJob) {
+        activeImageJob.promptId = promptId;
+        activeImageJob.phase = "upscaling";
+        throwIfImageCancelled(activeImageJob);
+      }
       const deadline = Date.now() + profile.timeoutMs;
       while (Date.now() < deadline) {
+        throwIfImageCancelled(activeImageJob);
         const history = await fetch(`${profile.baseUrl}/history/${encodeURIComponent(promptId)}`);
         if (history.ok) {
           const record = (await history.json())?.[promptId];
@@ -567,8 +575,27 @@ async function upscaleGeneratedOutputs(profile, images, settings, route) {
   }
 }
 
+function throwIfImageCancelled(job = activeImageJob) {
+  if (job?.cancelled) throw new Error("Image generation cancelled.");
+}
+
+async function interruptActiveImageJob() {
+  if (!activeImageJob) return false;
+  activeImageJob.cancelled = true;
+  try {
+    const profile = activeImageJob.baseUrl;
+    await fetch(`${profile}/interrupt`, { method: "POST", signal: AbortSignal.timeout(2500) });
+  } catch {
+    // The local job is still marked cancelled; ComfyUI may already have finished.
+  }
+  return true;
+}
+
 async function generateComfyImage(config, prompt, settings = {}, attachments = []) {
+  const imageJob = { promptId: "", phase: "preparing", cancelled: false, baseUrl: "" };
+  activeImageJob = imageJob;
   const profile = readComfyProfile(config);
+  imageJob.baseUrl = profile.baseUrl;
   const requestedEngine = imageEngine(settings);
   const engine = requestedEngine === "anime" && /(有兽焉|辟邪|bixie|pixiu|天禄|tianlu)/i.test(prompt)
     ? "flux2"
@@ -583,22 +610,31 @@ async function generateComfyImage(config, prompt, settings = {}, attachments = [
   let referenceContext;
   let uploadedReferenceName = "";
   try {
+    throwIfImageCancelled(imageJob);
     if (useReference && fs.existsSync(referenceWorkflowPath)) {
+      imageJob.phase = "reference";
       referenceContext = await createReferenceContext(profile, prompt, attachments, referenceWorkflowPath);
       uploadedReferenceName = referenceContext.uploadedName;
     }
   } catch (error) {
+    if (imageJob.cancelled) throw error;
     console.warn(`[VELA] Reference search unavailable; falling back to text-only generation: ${error instanceof Error ? error.message : String(error)}`);
   }
   const workflowPath = engine === "flux2"
     ? (referenceContext ? profile.fluxReferenceWorkflowPath : profile.fluxWorkflowPath)
     : referenceContext ? profile.referenceWorkflowPath : profile.workflowPath;
-  if (!fs.existsSync(workflowPath)) throw new Error(`Image workflow is missing: ${workflowPath}`);
+  if (!fs.existsSync(workflowPath)) {
+    if (activeImageJob === imageJob) activeImageJob = null;
+    throw new Error(`Image workflow is missing: ${workflowPath}`);
+  }
   const workflow = JSON.parse(fs.readFileSync(workflowPath, "utf8"));
   const promptNodeId = engine === "flux2" ? "4" : profile.promptNodeId;
   const promptInputName = engine === "flux2" ? "text" : profile.promptInputName;
   const node = workflow?.[promptNodeId];
-  if (!node?.inputs) throw new Error(`ComfyUI prompt node ${profile.promptNodeId} is invalid.`);
+  if (!node?.inputs) {
+    if (activeImageJob === imageJob) activeImageJob = null;
+    throw new Error(`ComfyUI prompt node ${profile.promptNodeId} is invalid.`);
+  }
   const route = imageRoute(prompt, settings);
   node.inputs[promptInputName] = engine === "flux2"
     ? routedFluxPrompt(prompt, referenceContext?.visualSpec ?? "")
@@ -640,6 +676,7 @@ async function generateComfyImage(config, prompt, settings = {}, attachments = [
     }
   }
   try {
+    throwIfImageCancelled(imageJob);
     const queued = await fetch(`${profile.baseUrl}/prompt`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -649,9 +686,13 @@ async function generateComfyImage(config, prompt, settings = {}, attachments = [
     const queuedPayload = await queued.json();
     const promptId = String(queuedPayload.prompt_id ?? "");
     if (!promptId) throw new Error("ComfyUI did not return a prompt id.");
+    imageJob.promptId = promptId;
+    imageJob.phase = "generating";
+    throwIfImageCancelled(imageJob);
 
     const deadline = Date.now() + profile.timeoutMs;
     while (Date.now() < deadline) {
+      throwIfImageCancelled(imageJob);
       const history = await fetch(`${profile.baseUrl}/history/${encodeURIComponent(promptId)}`);
       if (history.ok) {
         const record = (await history.json())?.[promptId];
@@ -688,6 +729,7 @@ async function generateComfyImage(config, prompt, settings = {}, attachments = [
   } finally {
     if (uploadedReferenceName) removeUploadedReference(uploadedReferenceName);
     if (referenceContext?.tempDirectory) fs.rmSync(referenceContext.tempDirectory, { recursive: true, force: true });
+    if (activeImageJob === imageJob) activeImageJob = null;
   }
 }
 
@@ -893,6 +935,37 @@ function requestComfyJson(requestPath, timeoutMs = 2500) {
   });
 }
 
+async function readOllamaHealth() {
+  try {
+    const response = await fetch("http://127.0.0.1:11434/api/tags", { signal: AbortSignal.timeout(1800) });
+    if (!response.ok) return { state: "offline", count: 0 };
+    const payload = await response.json();
+    const models = Array.isArray(payload?.models) ? payload.models : [];
+    return { state: "online", count: models.length };
+  } catch {
+    return { state: "offline", count: 0 };
+  }
+}
+
+function resourceSnapshot() {
+  const totalBytes = os.totalmem();
+  const freeBytes = os.freemem();
+  const snapshot = {
+    memoryTotalGb: Number((totalBytes / 1024 ** 3).toFixed(1)),
+    memoryFreeGb: Number((freeBytes / 1024 ** 3).toFixed(1)),
+    memoryPressure: freeBytes / totalBytes < 0.15,
+    modelLibrary: "E:\\AI-Models",
+    modelLibraryFreeGb: null
+  };
+  try {
+    const stats = fs.statfsSync("E:\\AI-Models");
+    snapshot.modelLibraryFreeGb = Number(((Number(stats.bavail) * Number(stats.bsize)) / 1024 ** 3).toFixed(1));
+  } catch {
+    // Disk free space is optional on older Electron runtimes.
+  }
+  return snapshot;
+}
+
 function createServer(openClaw) {
   const vendor = findOpenClawControlUi();
   const allowedMediaExtensions = new Set([
@@ -916,7 +989,36 @@ function createServer(openClaw) {
           gatewayModuleUrl: vendor.modulePath,
           gatewayUrl: `ws://127.0.0.1:${openClaw.port}`,
           token: openClaw.token,
-          version: app.getVersion()
+          version: app.getVersion(),
+          release: VELA_RELEASE
+        });
+        return;
+      }
+
+      if (url.pathname === "/api/health" && req.method === "GET") {
+        if (!requestIsAuthorized(req, url)) {
+          sendJson(res, 403, { error: "Forbidden" });
+          return;
+        }
+        const [gateway, comfy, ollama, ocu] = await Promise.all([
+          gatewayIsAvailable(openClaw.port),
+          gatewayIsAvailable(COMFY_PORT),
+          readOllamaHealth(),
+          gatewayIsAvailable(OCU_PORT)
+        ]);
+        sendJson(res, 200, {
+          ok: gateway && comfy && ollama.state === "online",
+          release: VELA_RELEASE,
+          services: {
+            gateway: { state: gateway ? "online" : "offline", port: openClaw.port },
+            comfy: { state: comfy ? "online" : "offline", port: COMFY_PORT },
+            ollama: { state: ollama.state, models: ollama.count, port: 11434 },
+            ocu: { state: ocu ? "online" : "offline", port: OCU_PORT }
+          },
+          resources: resourceSnapshot(),
+          imageJob: activeImageJob
+            ? { phase: activeImageJob.phase, promptId: activeImageJob.promptId, cancellable: true }
+            : null
         });
         return;
       }
@@ -950,6 +1052,15 @@ function createServer(openClaw) {
         const settings = payload?.settings && typeof payload.settings === "object" ? payload.settings : {};
         const attachments = Array.isArray(payload?.attachments) ? payload.attachments.slice(0, 2) : [];
         sendJson(res, 200, await generateComfyImage(config, prompt, settings, attachments));
+        return;
+      }
+
+      if (url.pathname === "/api/image-cancel" && req.method === "POST") {
+        if (!requestIsAuthorized(req, url)) {
+          sendJson(res, 403, { error: "Forbidden" });
+          return;
+        }
+        sendJson(res, 200, { ok: await interruptActiveImageJob() });
         return;
       }
 
@@ -987,7 +1098,9 @@ function createServer(openClaw) {
             running: running.length,
             pending: pending.length,
             runningPromptId: running[0]?.[1] ?? "",
-            pendingPromptId: pending[0]?.[1] ?? ""
+            pendingPromptId: pending[0]?.[1] ?? "",
+            activePhase: activeImageJob?.phase ?? "",
+            cancellable: Boolean(activeImageJob)
           });
         } catch {
           sendJson(res, 200, { online: false, running: 0, pending: 0 });
@@ -1163,6 +1276,7 @@ let server;
 let ocuProcess = null;
 let ocuStartPromise = null;
 let comfyStartPromise = null;
+let activeImageJob = null;
 
 function requestOcuJson(requestPath, method = "GET", payload = null, timeoutMs = 5000) {
   return new Promise((resolve, reject) => {

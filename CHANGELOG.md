@@ -1,5 +1,14 @@
 # Changelog
 
+## VELA 1.5.0 - 2026-08-03
+
+- Added a live local health badge for the OpenClaw Gateway, ComfyUI, Ollama and OCU services.
+- Added memory-pressure and model-library resource diagnostics without loading any model.
+- Added a real image-generation cancellation path that interrupts the active ComfyUI job, including 4K upscaling.
+- Exposed image job phase and cancellation state through the local diagnostics and image-status APIs.
+- Added an explicit VELA 1.5 release marker to the desktop title bar and bootstrap metadata.
+- Rebuilt and deployed the portable desktop executable to the local OpenClaw app directory.
+
 ## 1.1.1 - 2026-07-30
 
 - Refined VELA Desktop with a restrained black, white and graphite visual system.
