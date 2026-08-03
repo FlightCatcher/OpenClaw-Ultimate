@@ -11,8 +11,8 @@ const translations = {
     attach: "文件",
     connected: "已连接",
     healthChecking: "本地服务检查中",
-    healthReady: "VELA 1.7 · 就绪",
-    healthDegraded: "VELA 1.7 · 部分服务离线",
+    healthReady: "VELA 1.8 · 就绪",
+    healthDegraded: "VELA 1.8 · 部分服务离线",
     healthMemory: "内存压力较高",
     connecting: "正在连接",
     disconnected: "连接中断",
@@ -138,8 +138,8 @@ const translations = {
     attach: "Attach",
     connected: "Connected",
     healthChecking: "Checking local services",
-    healthReady: "VELA 1.7 · Ready",
-    healthDegraded: "VELA 1.7 · Degraded",
+    healthReady: "VELA 1.8 · Ready",
+    healthDegraded: "VELA 1.8 · Degraded",
     healthMemory: "High memory pressure",
     connecting: "Connecting",
     disconnected: "Disconnected",
@@ -846,11 +846,16 @@ function renderThinking() {
   return `
     <article class="message-row message-row--assistant">
       <div class="message-avatar">${createBrandSvg()}</div>
-      <div class="message-body">
-        <div class="typing" aria-label="${escapeHtml(t("thinking"))}">
-          <span></span><span></span><span></span>
+      <div class="message-body thinking-card">
+        <div class="thinking-visual" aria-hidden="true">
+          <i></i><i></i><b></b>
         </div>
-        <div class="message-meta">${escapeHtml(t("thinking"))}</div>
+        <div class="thinking-copy">
+          <strong>${escapeHtml(t("thinking"))}</strong>
+          <div class="typing" aria-label="${escapeHtml(t("thinking"))}">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
       </div>
     </article>`;
 }

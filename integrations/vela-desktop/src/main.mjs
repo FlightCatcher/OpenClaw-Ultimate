@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 
 const APP_PORT = 18790;
 const APP_HOST = "127.0.0.1";
-const VELA_RELEASE = "1.7.0";
+const VELA_RELEASE = "1.8.0";
 const COMFY_PORT = 8188;
 const OCU_PORT = 8765;
 const OCU_PROJECT_ROOT = process.env.OCU_PROJECT_ROOT ?? "E:\\Projects\\OpenClaw-Ultimate";
@@ -1243,8 +1243,8 @@ function createWindow() {
     title: "VELA",
     titleBarStyle: "hidden",
     titleBarOverlay: {
-      color: "#09090a",
-      symbolColor: "#e8e8ea",
+      color: "#00000000",
+      symbolColor: "#737373",
       height: 42
     },
     webPreferences: {

@@ -1238,3 +1238,619 @@ select:focus-visible {
   background: var(--apple-control) !important;
   border-color: var(--apple-line) !important;
 }
+
+/* VELA 4.14 — borderless liquid-glass refinement */
+:root,
+:root[data-theme="light"] {
+  --liquid-glass: rgba(255, 255, 255, 0.44);
+  --liquid-glass-strong: rgba(255, 255, 255, 0.66);
+  --liquid-glass-hover: rgba(255, 255, 255, 0.76);
+  --liquid-highlight: rgba(255, 255, 255, 0.88);
+  --liquid-shadow: 0 22px 68px rgba(20, 20, 20, 0.11);
+  --liquid-shadow-soft: 0 10px 32px rgba(20, 20, 20, 0.07);
+}
+
+:root[data-theme="dark"] {
+  --liquid-glass: rgba(255, 255, 255, 0.055);
+  --liquid-glass-strong: rgba(255, 255, 255, 0.085);
+  --liquid-glass-hover: rgba(255, 255, 255, 0.12);
+  --liquid-highlight: rgba(255, 255, 255, 0.14);
+  --liquid-shadow: 0 26px 80px rgba(0, 0, 0, 0.34);
+  --liquid-shadow-soft: 0 12px 34px rgba(0, 0, 0, 0.24);
+}
+
+/* Use light and shadow—not boxes—to separate the three primary areas. */
+:root[data-theme="light"] .titlebar,
+:root[data-theme="dark"] .titlebar,
+:root[data-theme="light"] .sidebar,
+:root[data-theme="dark"] .sidebar,
+:root[data-theme="light"] .chat-header,
+:root[data-theme="dark"] .chat-header,
+:root[data-theme="light"] .main,
+:root[data-theme="dark"] .main,
+.titlebar,
+.sidebar,
+.chat-header,
+.main {
+  border: 0 !important;
+}
+
+.titlebar {
+  background: color-mix(in srgb, var(--liquid-glass) 72%, transparent) !important;
+  box-shadow: 0 1px 18px rgba(0, 0, 0, 0.035), inset 0 1px var(--liquid-highlight) !important;
+  -webkit-backdrop-filter: blur(38px) saturate(138%) !important;
+  backdrop-filter: blur(38px) saturate(138%) !important;
+}
+
+.sidebar {
+  background:
+    linear-gradient(115deg, color-mix(in srgb, var(--liquid-glass) 76%, transparent), transparent 92%) !important;
+  box-shadow: 16px 0 44px rgba(0, 0, 0, 0.045), inset 1px 0 var(--liquid-highlight) !important;
+  -webkit-backdrop-filter: blur(42px) saturate(135%) !important;
+  backdrop-filter: blur(42px) saturate(135%) !important;
+}
+
+:root[data-theme="dark"] .sidebar {
+  box-shadow: 18px 0 54px rgba(0, 0, 0, 0.20), inset 1px 0 var(--liquid-highlight) !important;
+}
+
+.chat-header {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--liquid-glass) 54%, transparent), transparent) !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: blur(32px) saturate(132%) !important;
+  backdrop-filter: blur(32px) saturate(132%) !important;
+}
+
+.main {
+  isolation: isolate;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.main::before,
+.main::after {
+  position: absolute;
+  z-index: -1;
+  content: "";
+  pointer-events: none;
+  border-radius: 50%;
+  filter: blur(82px);
+  will-change: transform;
+}
+
+.main::before {
+  top: 6%;
+  left: 13%;
+  width: 48%;
+  height: 48%;
+  background: rgba(255, 255, 255, 0.42);
+  opacity: 0.52;
+  animation: liquid-drift-one 18s ease-in-out infinite alternate;
+}
+
+.main::after {
+  right: -8%;
+  bottom: -14%;
+  width: 45%;
+  height: 45%;
+  background: rgba(255, 255, 255, 0.34);
+  opacity: 0.38;
+  animation: liquid-drift-two 22s ease-in-out infinite alternate;
+}
+
+:root[data-theme="dark"] .main::before {
+  background: rgba(255, 255, 255, 0.055);
+  opacity: 0.58;
+}
+
+:root[data-theme="dark"] .main::after {
+  background: rgba(255, 255, 255, 0.04);
+  opacity: 0.52;
+}
+
+/* One quiet glass control island replaces three outlined pills. */
+.chat-header__right {
+  min-height: 36px;
+  gap: 0 !important;
+  padding: 3px 6px !important;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--liquid-glass-strong) 86%, transparent) !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  box-shadow: var(--liquid-shadow-soft), inset 0 1px var(--liquid-highlight) !important;
+  -webkit-backdrop-filter: blur(34px) saturate(140%);
+  backdrop-filter: blur(34px) saturate(140%);
+  transition: background 260ms ease, box-shadow 360ms var(--apple-ease), transform 360ms var(--apple-spring);
+}
+
+.chat-header__right:hover {
+  background: color-mix(in srgb, var(--liquid-glass-hover) 90%, transparent) !important;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.10), inset 0 1px var(--liquid-highlight) !important;
+  transform: translateY(-1px);
+}
+
+.chat-header__right .health-badge,
+.chat-header__right .text-button,
+.chat-header__right .model-picker,
+:root[data-theme="light"] .chat-header__right .health-badge,
+:root[data-theme="dark"] .chat-header__right .health-badge,
+:root[data-theme="light"] .chat-header__right .text-button,
+:root[data-theme="dark"] .chat-header__right .text-button,
+:root[data-theme="light"] .chat-header__right .model-picker,
+:root[data-theme="dark"] .chat-header__right .model-picker {
+  height: 30px !important;
+  margin: 0 !important;
+  color: var(--apple-ink-soft) !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.chat-header__right .health-badge:hover,
+.chat-header__right .text-button:hover,
+.chat-header__right .model-picker:hover {
+  color: var(--apple-ink) !important;
+  background: var(--liquid-glass) !important;
+}
+
+.chat-header__right .health-badge {
+  padding-right: 9px !important;
+  padding-left: 9px !important;
+}
+
+.chat-header__right .text-button {
+  padding: 0 10px !important;
+}
+
+.chat-header__right .model-picker {
+  padding: 0 6px 0 9px !important;
+}
+
+/* Remove separator-heavy styling throughout the navigation. */
+.sidebar__section-label {
+  margin-top: 18px !important;
+}
+
+.workspace-nav__item,
+.session-item,
+:root[data-theme="light"] .workspace-nav__item,
+:root[data-theme="dark"] .workspace-nav__item,
+:root[data-theme="light"] .session-item,
+:root[data-theme="dark"] .session-item {
+  border: 0 !important;
+}
+
+.workspace-nav__item.is-active,
+.session-item.is-active,
+:root[data-theme="light"] .workspace-nav__item.is-active,
+:root[data-theme="dark"] .workspace-nav__item.is-active,
+:root[data-theme="light"] .session-item.is-active,
+:root[data-theme="dark"] .session-item.is-active {
+  background: var(--liquid-glass-strong) !important;
+  border: 0 !important;
+  box-shadow: var(--liquid-shadow-soft), inset 0 1px var(--liquid-highlight) !important;
+}
+
+.sidebar__footer,
+:root[data-theme="light"] .sidebar__footer,
+:root[data-theme="dark"] .sidebar__footer {
+  background: linear-gradient(0deg, color-mix(in srgb, var(--liquid-glass) 82%, transparent), transparent) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.sidebar__section-label--recent::before,
+.sidebar__section-label--recent::after {
+  display: none !important;
+}
+
+/* The live workspace disappears into the canvas until requested. */
+.command-deck.is-collapsed,
+:root[data-theme="light"] .command-deck.is-collapsed,
+:root[data-theme="dark"] .command-deck.is-collapsed {
+  color: var(--apple-ink-faint) !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  opacity: 0.68;
+}
+
+.command-deck:not(.is-collapsed),
+:root[data-theme="light"] .command-deck:not(.is-collapsed),
+:root[data-theme="dark"] .command-deck:not(.is-collapsed) {
+  background: color-mix(in srgb, var(--liquid-glass-strong) 84%, transparent) !important;
+  border: 0 !important;
+  box-shadow: var(--liquid-shadow), inset 0 1px var(--liquid-highlight) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(142%) !important;
+  backdrop-filter: blur(40px) saturate(142%) !important;
+}
+
+/* Content cards float as glass, without hard outlines. */
+.quick-action,
+:root[data-theme="light"] .quick-action,
+:root[data-theme="dark"] .quick-action {
+  background: color-mix(in srgb, var(--liquid-glass) 88%, transparent) !important;
+  border: 0 !important;
+  box-shadow: var(--liquid-shadow-soft), inset 0 1px var(--liquid-highlight) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(135%) !important;
+  backdrop-filter: blur(32px) saturate(135%) !important;
+}
+
+.quick-action:hover,
+:root[data-theme="light"] .quick-action:hover,
+:root[data-theme="dark"] .quick-action:hover {
+  background: var(--liquid-glass-hover) !important;
+  border: 0 !important;
+  box-shadow: var(--liquid-shadow), inset 0 1px var(--liquid-highlight) !important;
+}
+
+.composer,
+:root[data-theme="light"] .composer,
+:root[data-theme="dark"] .composer {
+  background: color-mix(in srgb, var(--liquid-glass-strong) 86%, transparent) !important;
+  border: 0 !important;
+  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.14), inset 0 1px var(--liquid-highlight), inset 1px 0 rgba(255, 255, 255, 0.12) !important;
+  -webkit-backdrop-filter: blur(44px) saturate(145%) !important;
+  backdrop-filter: blur(44px) saturate(145%) !important;
+}
+
+:root[data-theme="dark"] .composer {
+  box-shadow: 0 28px 78px rgba(0, 0, 0, 0.40), inset 0 1px var(--liquid-highlight), inset 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+.composer:focus-within,
+:root[data-theme="light"] .composer:focus-within,
+:root[data-theme="dark"] .composer:focus-within {
+  border: 0 !important;
+  background: color-mix(in srgb, var(--liquid-glass-hover) 92%, transparent) !important;
+  box-shadow: 0 30px 86px rgba(0, 0, 0, 0.18), inset 0 1px var(--liquid-highlight) !important;
+}
+
+.message-row--user .message-body,
+:root[data-theme="light"] .message-row--user .message-body,
+:root[data-theme="dark"] .message-row--user .message-body {
+  background: color-mix(in srgb, var(--liquid-glass-strong) 86%, transparent) !important;
+  border: 0 !important;
+  box-shadow: var(--liquid-shadow-soft), inset 0 1px var(--liquid-highlight) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(132%) !important;
+  backdrop-filter: blur(30px) saturate(132%) !important;
+}
+
+/* Assistant replies belong to the canvas, not to another rectangular panel. */
+.message-row--assistant > .message-body:not(.thinking-card):not(.image-progress-card),
+:root[data-theme="light"] .message-row--assistant > .message-body:not(.thinking-card):not(.image-progress-card),
+:root[data-theme="dark"] .message-row--assistant > .message-body:not(.thinking-card):not(.image-progress-card) {
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.message-row--assistant:hover > .message-body:not(.thinking-card):not(.image-progress-card) {
+  transform: none !important;
+}
+
+.message-row--assistant .media-grid {
+  gap: 12px !important;
+}
+
+.message-row--assistant .media-card,
+:root[data-theme="light"] .message-row--assistant .media-card,
+:root[data-theme="dark"] .message-row--assistant .media-card {
+  overflow: hidden;
+  background: color-mix(in srgb, var(--liquid-glass) 74%, transparent) !important;
+  border: 0 !important;
+  box-shadow: var(--liquid-shadow-soft), inset 0 1px var(--liquid-highlight) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(128%) !important;
+  backdrop-filter: blur(24px) saturate(128%) !important;
+}
+
+.message-row--assistant .message-meta {
+  margin-top: 7px !important;
+  opacity: 0.54;
+}
+
+.workspace-panel,
+.media-dialog,
+.drop-overlay > div,
+.toast {
+  border: 0 !important;
+  background: color-mix(in srgb, var(--liquid-glass-strong) 92%, transparent) !important;
+  box-shadow: var(--liquid-shadow), inset 0 1px var(--liquid-highlight) !important;
+  -webkit-backdrop-filter: blur(46px) saturate(145%) !important;
+  backdrop-filter: blur(46px) saturate(145%) !important;
+}
+
+/* Thinking: a soft liquid pulse instead of three anonymous dots. */
+.thinking-card {
+  position: relative;
+  display: inline-flex !important;
+  min-width: 176px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px 10px 10px !important;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--liquid-glass) 86%, transparent) !important;
+  border: 0 !important;
+  border-radius: 18px !important;
+  box-shadow: var(--liquid-shadow-soft), inset 0 1px var(--liquid-highlight) !important;
+  -webkit-backdrop-filter: blur(34px) saturate(138%);
+  backdrop-filter: blur(34px) saturate(138%);
+  animation: thinking-card-breathe 2.8s ease-in-out infinite !important;
+}
+
+.thinking-card::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  background: linear-gradient(112deg, transparent 25%, rgba(255, 255, 255, 0.24) 48%, transparent 72%);
+  transform: translateX(-115%);
+  animation: liquid-sheen 2.7s var(--apple-ease) infinite;
+}
+
+.thinking-visual {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: 50%;
+  background: var(--liquid-glass-strong);
+  box-shadow: inset 0 1px var(--liquid-highlight), 0 6px 18px rgba(0, 0, 0, 0.10);
+}
+
+.thinking-visual i {
+  position: absolute;
+  inset: 5px;
+  border: 1px solid color-mix(in srgb, var(--apple-ink) 32%, transparent);
+  border-top-color: var(--apple-ink);
+  border-radius: 50%;
+  animation: liquid-orbit 1.65s linear infinite;
+}
+
+.thinking-visual i:nth-child(2) {
+  inset: 9px;
+  border-top-color: transparent;
+  border-right-color: var(--apple-ink);
+  animation-direction: reverse;
+  animation-duration: 1.05s;
+}
+
+.thinking-visual b {
+  position: absolute;
+  inset: 14px;
+  background: var(--apple-ink);
+  border-radius: 50%;
+  animation: liquid-core 1.4s ease-in-out infinite;
+}
+
+.thinking-copy {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.thinking-copy strong {
+  color: var(--apple-ink) !important;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.thinking-copy .typing {
+  gap: 4px;
+  padding: 0 !important;
+}
+
+.thinking-copy .typing span {
+  width: 13px;
+  height: 2px;
+  background: var(--apple-ink-faint) !important;
+  border-radius: 999px;
+  transform-origin: left center;
+  animation: thinking-wave 1.25s ease-in-out infinite !important;
+}
+
+.thinking-copy .typing span:nth-child(2) { width: 20px; animation-delay: 130ms !important; }
+.thinking-copy .typing span:nth-child(3) { width: 9px; animation-delay: 260ms !important; }
+
+/* Reply and media reveal motion. */
+.message-row--assistant.message-row--fresh .message-copy > *,
+.message-row--assistant.message-row--fresh .media-grid,
+.message-row--assistant.message-row--fresh .file-grid {
+  animation: reply-reveal 560ms var(--apple-ease) both;
+}
+
+.message-row--assistant.message-row--fresh .message-copy > *:nth-child(2) { animation-delay: 45ms; }
+.message-row--assistant.message-row--fresh .message-copy > *:nth-child(3) { animation-delay: 90ms; }
+.message-row--assistant.message-row--fresh .message-copy > *:nth-child(n + 4) { animation-delay: 125ms; }
+
+/* Image generation: monochrome liquid lens with continuous depth motion. */
+.image-progress-card,
+:root[data-theme="light"] .image-progress-card,
+:root[data-theme="dark"] .image-progress-card {
+  background: color-mix(in srgb, var(--liquid-glass) 88%, transparent) !important;
+  border: 0 !important;
+  box-shadow: var(--liquid-shadow), inset 0 1px var(--liquid-highlight) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(140%) !important;
+  backdrop-filter: blur(40px) saturate(140%) !important;
+  animation: image-card-float 3.6s ease-in-out infinite !important;
+}
+
+.image-progress-card::before {
+  background:
+    radial-gradient(circle at 18% 24%, rgba(255, 255, 255, 0.34), transparent 32%),
+    linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.18) 48%, transparent 74%) !important;
+  background-size: auto !important;
+  mask-image: none !important;
+  transform: translateX(-80%);
+  animation: liquid-sheen 2.5s var(--apple-ease) infinite;
+}
+
+.image-progress-visual,
+:root[data-theme="light"] .image-progress-visual,
+:root[data-theme="dark"] .image-progress-visual {
+  background: var(--liquid-glass-strong) !important;
+  border: 0 !important;
+  box-shadow: inset 0 1px var(--liquid-highlight), 0 10px 28px rgba(0, 0, 0, 0.10) !important;
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+}
+
+.image-progress-orb {
+  animation: image-orb-float 2.5s ease-in-out infinite;
+}
+
+.image-progress-orb i {
+  border-color: color-mix(in srgb, var(--apple-ink) 22%, transparent) !important;
+  border-top-color: var(--apple-ink) !important;
+  animation: liquid-orbit 1.8s linear infinite !important;
+}
+
+.image-progress-orb i:nth-child(2) {
+  border-color: color-mix(in srgb, var(--apple-ink) 15%, transparent) !important;
+  border-right-color: var(--apple-ink) !important;
+  animation-direction: reverse !important;
+  animation-duration: 1.1s !important;
+}
+
+.image-progress-orb b,
+:root[data-theme="light"] .image-progress-orb b,
+:root[data-theme="dark"] .image-progress-orb b {
+  background: var(--apple-ink) !important;
+  box-shadow: 0 0 0 7px color-mix(in srgb, var(--apple-ink) 8%, transparent), 0 0 25px color-mix(in srgb, var(--apple-ink) 24%, transparent) !important;
+  animation: liquid-core 1.35s ease-in-out infinite !important;
+}
+
+.image-progress-scan {
+  width: 28px !important;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.30), transparent) !important;
+  animation: image-scan 2.2s var(--apple-ease) infinite !important;
+}
+
+.image-progress-track {
+  height: 5px !important;
+  background: color-mix(in srgb, var(--apple-ink) 9%, transparent) !important;
+}
+
+.image-progress-track span,
+:root[data-theme="light"] .image-progress-track span,
+:root[data-theme="dark"] .image-progress-track span {
+  background: var(--apple-ink) !important;
+  transition: width 760ms var(--apple-ease) !important;
+}
+
+/* Image studio uses one sheet and quiet selections instead of a grid of boxes. */
+.image-studio,
+:root[data-theme="light"] .image-studio,
+:root[data-theme="dark"] .image-studio {
+  background: color-mix(in srgb, var(--liquid-glass-strong) 90%, transparent) !important;
+  border: 0 !important;
+  box-shadow: var(--liquid-shadow), inset 0 1px var(--liquid-highlight) !important;
+  -webkit-backdrop-filter: blur(48px) saturate(140%) !important;
+  backdrop-filter: blur(48px) saturate(140%) !important;
+}
+
+.image-studio__presets,
+.image-studio__header,
+.image-studio__row,
+.image-studio__reference,
+.image-studio__text-row {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.subject-chip,
+.studio-choice,
+.image-studio .studio-choice:not(.is-active),
+:root[data-theme="light"] .subject-chip,
+:root[data-theme="dark"] .subject-chip,
+:root[data-theme="light"] .image-studio .studio-choice:not(.is-active),
+:root[data-theme="dark"] .image-studio .studio-choice:not(.is-active) {
+  background: color-mix(in srgb, var(--apple-ink) 5%, transparent) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.subject-chip:hover,
+.studio-choice:hover,
+.image-studio .studio-choice:not(.is-active):hover {
+  background: color-mix(in srgb, var(--apple-ink) 10%, transparent) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.image-studio__badge,
+.studio-choice.is-active,
+.subject-chip.is-active,
+:root[data-theme="light"] .studio-choice.is-active,
+:root[data-theme="dark"] .studio-choice.is-active {
+  color: var(--apple-bg) !important;
+  background: var(--apple-ink) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+@keyframes liquid-drift-one {
+  0% { transform: translate3d(-8%, -5%, 0) scale(0.94); }
+  100% { transform: translate3d(28%, 16%, 0) scale(1.15); }
+}
+
+@keyframes liquid-drift-two {
+  0% { transform: translate3d(10%, 8%, 0) scale(0.92); }
+  100% { transform: translate3d(-30%, -22%, 0) scale(1.12); }
+}
+
+@keyframes liquid-sheen {
+  0%, 18% { transform: translateX(-115%); opacity: 0; }
+  35% { opacity: 0.9; }
+  72%, 100% { transform: translateX(115%); opacity: 0; }
+}
+
+@keyframes liquid-orbit {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes liquid-core {
+  0%, 100% { transform: scale(0.74); opacity: 0.55; }
+  50% { transform: scale(1.22); opacity: 1; }
+}
+
+@keyframes thinking-wave {
+  0%, 100% { opacity: 0.28; transform: scaleX(0.55); }
+  50% { opacity: 0.9; transform: scaleX(1); }
+}
+
+@keyframes thinking-card-breathe {
+  0%, 100% { transform: translateY(0); box-shadow: var(--liquid-shadow-soft), inset 0 1px var(--liquid-highlight); }
+  50% { transform: translateY(-2px); box-shadow: var(--liquid-shadow), inset 0 1px var(--liquid-highlight); }
+}
+
+@keyframes reply-reveal {
+  from { opacity: 0; transform: translateY(8px); filter: blur(3px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+@keyframes image-card-float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-3px) scale(1.004); }
+}
+
+@keyframes image-orb-float {
+  0%, 100% { transform: translateY(1px) rotate(-2deg); }
+  50% { transform: translateY(-3px) rotate(2deg); }
+}
+
+@keyframes image-scan {
+  0% { transform: translateX(-62px); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translateX(62px); opacity: 0; }
+}
