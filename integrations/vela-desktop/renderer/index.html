@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
     <title>VELA</title>
-        <link rel="stylesheet" href="/styles.css?v=4.12.0" />
-        <link rel="stylesheet" href="/vela.css?v=4.12.0" />
+    <link rel="stylesheet" href="/styles.css?v=4.13.1" />
+    <link rel="stylesheet" href="/vela.css?v=4.13.1" />
+    <link rel="stylesheet" href="/vela-apple.css?v=4.13.1" />
   </head>
   <body>
     <div id="app" class="app-shell">
@@ -16,8 +17,7 @@
             <img class="vela-logo" src="/vela-icon.png?v=4.11.1" alt="" />
           </span>
           <span>VELA</span>
-          <small>LOCAL AGENT</small>
-            <span class="titlebar__release">1.6</span>
+          <small>LOCAL INTELLIGENCE</small>
         </div>
       </header>
 
@@ -92,7 +92,7 @@
             <span data-i18n="localAgent">本地智能体</span>
           </div>
           <div class="chat-header__right">
-            <span class="health-badge" id="health-badge" title="本地服务状态">VELA 1.6 · 检查中</span>
+            <span class="health-badge" id="health-badge" title="本地服务状态">VELA 1.7 · 检查中</span>
             <button class="text-button" id="retry-button" type="button" hidden data-i18n="reconnect">重新连接</button>
             <label class="model-picker">
               <span data-i18n="modelLabel">模型</span>
@@ -109,7 +109,7 @@
           </div>
         </header>
 
-        <section class="command-deck" id="command-deck" aria-label="Live workspace">
+        <section class="command-deck is-collapsed" id="command-deck" aria-label="Live workspace">
           <div class="command-deck__topline">
             <div class="command-deck__label">
               <span class="deck-signal"></span>
@@ -325,6 +325,6 @@
       />
       <div class="toast-region" id="toast-region" aria-live="polite"></div>
     </div>
-    <script type="module" src="/app.js?v=4.12.0"></script>
+    <script type="module" src="/app.js?v=4.13.1"></script>
   </body>
 </html>

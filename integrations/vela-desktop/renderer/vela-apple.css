@@ -1,0 +1,1240 @@
+/* VELA 4.13 — monochrome liquid-glass desktop design */
+
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+  --apple-bg: #ececeb;
+  --apple-bg-deep: #dededd;
+  --apple-ink: #111111;
+  --apple-ink-soft: rgba(17, 17, 17, 0.58);
+  --apple-ink-faint: rgba(17, 17, 17, 0.38);
+  --apple-glass: rgba(255, 255, 255, 0.56);
+  --apple-glass-strong: rgba(255, 255, 255, 0.76);
+  --apple-glass-soft: rgba(255, 255, 255, 0.38);
+  --apple-control: rgba(255, 255, 255, 0.48);
+  --apple-control-hover: rgba(255, 255, 255, 0.78);
+  --apple-line: rgba(0, 0, 0, 0.085);
+  --apple-line-strong: rgba(0, 0, 0, 0.15);
+  --apple-highlight: rgba(255, 255, 255, 0.92);
+  --apple-shadow: 0 24px 70px rgba(0, 0, 0, 0.10);
+  --apple-shadow-soft: 0 10px 32px rgba(0, 0, 0, 0.07);
+  --apple-blur: blur(30px) saturate(125%);
+  --apple-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --apple-spring: cubic-bezier(0.16, 1.16, 0.3, 1);
+  --titlebar-height: 48px;
+  --sidebar-width: 258px;
+  --bg: var(--apple-bg);
+  --surface: var(--apple-glass-strong);
+  --surface-2: var(--apple-control);
+  --surface-3: var(--apple-control-hover);
+  --text: var(--apple-ink);
+  --muted: var(--apple-ink-soft);
+  --border: var(--apple-line);
+  --border-strong: var(--apple-line-strong);
+  --accent: #171717;
+  --accent-text: #ffffff;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --apple-bg: #080808;
+  --apple-bg-deep: #000000;
+  --apple-ink: #f5f5f5;
+  --apple-ink-soft: rgba(245, 245, 245, 0.58);
+  --apple-ink-faint: rgba(245, 245, 245, 0.34);
+  --apple-glass: rgba(30, 30, 30, 0.58);
+  --apple-glass-strong: rgba(36, 36, 36, 0.76);
+  --apple-glass-soft: rgba(255, 255, 255, 0.055);
+  --apple-control: rgba(255, 255, 255, 0.075);
+  --apple-control-hover: rgba(255, 255, 255, 0.12);
+  --apple-line: rgba(255, 255, 255, 0.085);
+  --apple-line-strong: rgba(255, 255, 255, 0.16);
+  --apple-highlight: rgba(255, 255, 255, 0.16);
+  --apple-shadow: 0 28px 90px rgba(0, 0, 0, 0.42);
+  --apple-shadow-soft: 0 12px 38px rgba(0, 0, 0, 0.30);
+  --accent: #f2f2f2;
+  --accent-text: #111111;
+}
+
+html,
+body,
+#app {
+  min-width: 0;
+  min-height: 0;
+  background: transparent !important;
+}
+
+body {
+  overflow: hidden;
+  color: var(--apple-ink) !important;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI Variable", "Segoe UI", sans-serif !important;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+  background:
+    radial-gradient(circle at 17% 5%, rgba(255, 255, 255, 0.86), transparent 34%),
+    radial-gradient(circle at 86% 98%, rgba(255, 255, 255, 0.42), transparent 32%),
+    linear-gradient(145deg, var(--apple-bg), var(--apple-bg-deep)) !important;
+}
+
+:root[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.085), transparent 34%),
+    radial-gradient(circle at 88% 100%, rgba(255, 255, 255, 0.045), transparent 31%),
+    linear-gradient(145deg, var(--apple-bg), var(--apple-bg-deep)) !important;
+}
+
+button,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-shell {
+  position: relative;
+  isolation: isolate;
+  display: grid !important;
+  width: 100vw;
+  height: 100vh;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr) !important;
+  grid-template-rows: var(--titlebar-height) minmax(0, 1fr) !important;
+  gap: 0 !important;
+  padding: 0 !important;
+  overflow: hidden;
+  background: transparent !important;
+  animation: apple-app-enter 720ms var(--apple-ease) both;
+}
+
+.app-shell::before {
+  position: fixed !important;
+  z-index: -1 !important;
+  width: 50vw !important;
+  height: 50vw !important;
+  inset: -24vw auto auto -18vw !important;
+  content: "";
+  pointer-events: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.62) !important;
+  filter: blur(90px);
+  opacity: 0.58 !important;
+  animation: apple-ambient 16s ease-in-out infinite alternate;
+}
+
+:root[data-theme="dark"] .app-shell::before {
+  background: rgba(255, 255, 255, 0.08) !important;
+  opacity: 0.46 !important;
+}
+
+.app-shell::after {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  border: 1px solid var(--apple-highlight);
+  box-shadow: inset 0 1px 0 var(--apple-highlight), inset 0 -1px 0 rgba(0, 0, 0, 0.04);
+}
+
+/* Unified desktop chrome */
+.titlebar {
+  position: relative !important;
+  z-index: 30 !important;
+  display: flex !important;
+  grid-column: 1 / -1 !important;
+  grid-row: 1 !important;
+  height: var(--titlebar-height) !important;
+  align-items: center !important;
+  padding: 0 18px !important;
+  color: var(--apple-ink) !important;
+  background: color-mix(in srgb, var(--apple-glass) 80%, transparent) !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--apple-line) !important;
+  box-shadow: inset 0 1px 0 var(--apple-highlight) !important;
+  -webkit-backdrop-filter: var(--apple-blur);
+  backdrop-filter: var(--apple-blur);
+}
+
+.titlebar__brand {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  color: var(--apple-ink) !important;
+  font-size: 12px !important;
+  font-weight: 720 !important;
+  letter-spacing: 0.26em !important;
+}
+
+.titlebar__brand small {
+  margin-left: 2px;
+  color: var(--apple-ink-faint) !important;
+  font-size: 8px !important;
+  font-weight: 620 !important;
+  letter-spacing: 0.18em !important;
+}
+
+.titlebar__release {
+  display: none !important;
+}
+
+.brand-mark {
+  width: 31px !important;
+  height: 31px !important;
+  overflow: hidden !important;
+  background: #111 !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 7px 18px rgba(0, 0, 0, 0.20), inset 0 1px rgba(255, 255, 255, 0.18) !important;
+  transition: transform 420ms var(--apple-spring), box-shadow 420ms var(--apple-ease) !important;
+}
+
+.brand-mark:hover {
+  transform: scale(1.06) rotate(-2deg);
+  box-shadow: 0 11px 24px rgba(0, 0, 0, 0.24), inset 0 1px rgba(255, 255, 255, 0.24) !important;
+}
+
+.vela-logo {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Sidebar */
+.sidebar {
+  position: relative !important;
+  z-index: 20 !important;
+  display: flex !important;
+  min-width: 0;
+  grid-column: 1 !important;
+  grid-row: 2 !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  color: var(--apple-ink) !important;
+  background: color-mix(in srgb, var(--apple-glass) 82%, transparent) !important;
+  border: 0 !important;
+  border-right: 1px solid var(--apple-line) !important;
+  border-radius: 0 !important;
+  box-shadow: inset 1px 0 0 var(--apple-highlight) !important;
+  -webkit-backdrop-filter: var(--apple-blur);
+  backdrop-filter: var(--apple-blur);
+  animation: apple-sidebar-enter 650ms var(--apple-ease) 60ms both;
+}
+
+.sidebar__top {
+  padding: 16px 14px 10px !important;
+}
+
+.new-chat-button {
+  position: relative;
+  isolation: isolate;
+  width: 100% !important;
+  height: 43px !important;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+  padding: 0 15px !important;
+  overflow: hidden;
+  color: #fff !important;
+  background: #171717 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 13px !important;
+  box-shadow: 0 9px 24px rgba(0, 0, 0, 0.16), inset 0 1px rgba(255, 255, 255, 0.16) !important;
+  transition: transform 360ms var(--apple-spring), box-shadow 360ms var(--apple-ease), background 220ms ease !important;
+}
+
+.new-chat-button::after {
+  position: absolute;
+  inset: -100% -50%;
+  z-index: -1;
+  content: "";
+  background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, 0.15) 50%, transparent 65%);
+  transform: translateX(-60%) rotate(8deg);
+  transition: transform 700ms var(--apple-ease);
+}
+
+.new-chat-button:hover {
+  background: #050505 !important;
+  box-shadow: 0 13px 30px rgba(0, 0, 0, 0.22), inset 0 1px rgba(255, 255, 255, 0.2) !important;
+  transform: translateY(-1px) scale(1.008);
+}
+
+.new-chat-button:hover::after {
+  transform: translateX(60%) rotate(8deg);
+}
+
+.new-chat-button:active {
+  transform: scale(0.975);
+}
+
+.new-chat-button svg {
+  width: 17px !important;
+  height: 17px !important;
+}
+
+.sidebar__section-label {
+  margin: 15px 20px 7px !important;
+  color: var(--apple-ink-faint) !important;
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.16em !important;
+  text-transform: uppercase;
+}
+
+.workspace-nav {
+  display: grid !important;
+  gap: 2px !important;
+  padding: 0 10px !important;
+}
+
+.workspace-nav__item {
+  position: relative;
+  height: 42px !important;
+  gap: 11px !important;
+  padding: 0 12px !important;
+  overflow: hidden;
+  color: var(--apple-ink-soft) !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 11px !important;
+  font-size: 12px !important;
+  font-weight: 610 !important;
+  transition: color 220ms ease, background 260ms ease, transform 320ms var(--apple-spring), border-color 220ms ease !important;
+}
+
+.workspace-nav__item:hover {
+  color: var(--apple-ink) !important;
+  background: var(--apple-control) !important;
+  transform: translateX(2px);
+}
+
+.workspace-nav__item.is-active {
+  color: var(--apple-ink) !important;
+  background: var(--apple-glass-strong) !important;
+  border-color: var(--apple-line) !important;
+  box-shadow: var(--apple-shadow-soft), inset 0 1px var(--apple-highlight) !important;
+}
+
+.workspace-nav__item.is-active::before {
+  position: absolute;
+  top: 11px;
+  bottom: 11px;
+  left: 0;
+  width: 2px;
+  content: "";
+  background: var(--apple-ink);
+  border-radius: 999px;
+  animation: apple-indicator 420ms var(--apple-spring) both;
+}
+
+.workspace-nav__icon,
+.workspace-nav__item.is-active .workspace-nav__icon {
+  color: currentColor !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.session-list {
+  min-height: 0 !important;
+  padding: 0 10px 12px !important;
+  overflow: auto !important;
+  scrollbar-width: thin;
+  scrollbar-color: var(--apple-line-strong) transparent;
+}
+
+.session-item {
+  min-height: 48px !important;
+  margin: 2px 0 !important;
+  color: var(--apple-ink) !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  transition: background 240ms ease, border-color 240ms ease, transform 320ms var(--apple-spring) !important;
+}
+
+.session-item:hover,
+.session-item.is-active {
+  background: var(--apple-control) !important;
+  border-color: var(--apple-line) !important;
+  transform: translateX(2px);
+}
+
+.session-item.is-active {
+  background: var(--apple-glass-strong) !important;
+  box-shadow: inset 0 1px var(--apple-highlight) !important;
+}
+
+.session-item__title,
+.session-item__meta {
+  color: inherit !important;
+}
+
+.session-item__meta {
+  color: var(--apple-ink-faint) !important;
+}
+
+.sidebar__footer {
+  min-height: 58px !important;
+  padding: 10px 14px !important;
+  color: var(--apple-ink-soft) !important;
+  background: color-mix(in srgb, var(--apple-glass-strong) 60%, transparent) !important;
+  border-top: 1px solid var(--apple-line) !important;
+  box-shadow: inset 0 1px var(--apple-highlight) !important;
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+}
+
+.connection-dot,
+.connection-pill.is-connected .connection-dot,
+.connection-pill.is-error .connection-dot {
+  background: currentColor !important;
+  box-shadow: none !important;
+}
+
+.connection-pill.is-connected {
+  color: var(--apple-ink) !important;
+}
+
+.icon-button--sidebar {
+  color: var(--apple-ink-soft) !important;
+}
+
+.icon-button--sidebar:hover {
+  color: var(--apple-ink) !important;
+  background: var(--apple-control-hover) !important;
+}
+
+/* Main conversation surface */
+.main {
+  position: relative !important;
+  z-index: 1 !important;
+  display: grid !important;
+  min-width: 0;
+  min-height: 0;
+  grid-column: 2 !important;
+  grid-row: 2 !important;
+  grid-template-rows: 66px auto minmax(0, 1fr) auto !important;
+  overflow: hidden !important;
+  color: var(--apple-ink) !important;
+  background: color-mix(in srgb, var(--apple-glass-soft) 45%, transparent) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: inset 0 1px var(--apple-highlight) !important;
+}
+
+.chat-header {
+  position: relative !important;
+  z-index: 10 !important;
+  display: flex !important;
+  min-width: 0;
+  height: 66px !important;
+  align-items: center !important;
+  padding: 0 26px !important;
+  color: var(--apple-ink) !important;
+  background: color-mix(in srgb, var(--apple-glass) 50%, transparent) !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--apple-line) !important;
+  box-shadow: inset 0 1px var(--apple-highlight) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(120%);
+  backdrop-filter: blur(24px) saturate(120%);
+}
+
+.chat-header__identity {
+  min-width: 0;
+}
+
+.chat-header__identity strong {
+  max-width: min(48vw, 620px) !important;
+  overflow: hidden;
+  color: var(--apple-ink) !important;
+  font-size: 14px !important;
+  font-weight: 660 !important;
+  letter-spacing: -0.015em !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-header__identity span {
+  margin-top: 2px !important;
+  color: var(--apple-ink-faint) !important;
+  font-size: 9px !important;
+}
+
+.chat-header__right {
+  gap: 7px !important;
+}
+
+.health-badge,
+.privacy-badge,
+.model-picker,
+.text-button,
+.deck-toggle,
+.workspace-panel__sync {
+  color: var(--apple-ink-soft) !important;
+  background: var(--apple-control) !important;
+  border: 1px solid var(--apple-line) !important;
+  border-radius: 999px !important;
+  box-shadow: inset 0 1px var(--apple-highlight) !important;
+  transition: color 220ms ease, background 220ms ease, transform 300ms var(--apple-spring) !important;
+}
+
+.health-badge:hover,
+.privacy-badge:hover,
+.model-picker:hover,
+.text-button:hover,
+.deck-toggle:hover {
+  color: var(--apple-ink) !important;
+  background: var(--apple-control-hover) !important;
+  transform: translateY(-1px);
+}
+
+.health-badge {
+  max-width: 152px !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-badge::before {
+  background: var(--apple-ink) !important;
+  box-shadow: none !important;
+}
+
+.privacy-badge {
+  display: none !important;
+}
+
+.model-picker {
+  height: 32px !important;
+  padding: 0 7px 0 11px !important;
+}
+
+.model-picker > span {
+  display: none !important;
+}
+
+.model-picker select,
+:root[data-theme="light"] .model-picker select,
+:root[data-theme="dark"] .model-picker select {
+  max-width: 158px !important;
+  color: var(--apple-ink) !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.model-picker option,
+:root[data-theme="light"] .model-picker option,
+:root[data-theme="dark"] .model-picker option {
+  color: var(--apple-ink) !important;
+  background: var(--apple-bg) !important;
+}
+
+/* Live workflow: compact by default, expands as glass HUD */
+.command-deck {
+  position: relative !important;
+  inset: auto !important;
+  z-index: 8 !important;
+  display: grid !important;
+  width: auto !important;
+  height: auto !important;
+  min-height: 52px !important;
+  max-height: 170px !important;
+  grid-row: 2 !important;
+  margin: 10px 18px 0 !important;
+  padding: 10px 14px !important;
+  overflow: hidden !important;
+  color: var(--apple-ink) !important;
+  background: color-mix(in srgb, var(--apple-glass) 72%, transparent) !important;
+  border: 1px solid var(--apple-line) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--apple-shadow-soft), inset 0 1px var(--apple-highlight) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(120%);
+  backdrop-filter: blur(26px) saturate(120%);
+  transition: min-height 460ms var(--apple-ease), max-height 460ms var(--apple-ease), padding 460ms var(--apple-ease), opacity 260ms ease !important;
+  animation: apple-panel-enter 520ms var(--apple-ease) 120ms both;
+}
+
+.command-deck.is-collapsed {
+  width: 132px !important;
+  min-height: 34px !important;
+  max-height: 34px !important;
+  justify-self: end;
+  padding: 3px 8px !important;
+  border-radius: 999px !important;
+}
+
+.command-deck.is-collapsed .command-deck__topline {
+  min-height: 26px !important;
+}
+
+.command-deck.is-collapsed .command-deck__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.command-deck.is-collapsed .deck-toggle {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100% !important;
+  opacity: 0;
+}
+
+.command-deck.is-collapsed .command-deck__flow,
+.command-deck.is-collapsed .command-deck__metrics {
+  opacity: 0 !important;
+  transform: translateY(-6px) !important;
+  pointer-events: none;
+}
+
+.command-deck__topline {
+  min-height: 26px !important;
+}
+
+.command-deck__label,
+.command-deck__metrics,
+.deck-node,
+.deck-toggle {
+  color: var(--apple-ink-soft) !important;
+}
+
+.deck-signal,
+.deck-node i,
+.deck-node.is-active i,
+.deck-node.is-complete i {
+  background: var(--apple-ink) !important;
+  box-shadow: none !important;
+}
+
+.deck-link {
+  background: var(--apple-line-strong) !important;
+}
+
+.command-deck__flow,
+.command-deck__metrics {
+  transition: opacity 260ms ease, transform 360ms var(--apple-ease) !important;
+}
+
+.deck-toggle {
+  height: 27px !important;
+  padding: 0 10px !important;
+}
+
+.chat-scroll {
+  min-height: 0 !important;
+  grid-row: 3 !important;
+  overflow: auto !important;
+  scrollbar-width: thin;
+  scrollbar-color: var(--apple-line-strong) transparent;
+}
+
+.chat-content {
+  width: min(860px, calc(100% - 56px)) !important;
+  min-height: 100% !important;
+  padding: 42px 0 48px !important;
+}
+
+.empty-state {
+  min-height: calc(100vh - 300px) !important;
+  animation: apple-empty-enter 740ms var(--apple-ease) 100ms both !important;
+}
+
+.empty-mark {
+  width: 62px !important;
+  height: 62px !important;
+  margin-bottom: 24px !important;
+  overflow: hidden;
+  color: #fff !important;
+  background: #111 !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 19px !important;
+  box-shadow: 0 17px 42px rgba(0, 0, 0, 0.22), inset 0 1px rgba(255, 255, 255, 0.18) !important;
+  animation: apple-logo-float 7s ease-in-out infinite !important;
+}
+
+.empty-state h1 {
+  max-width: 760px !important;
+  color: var(--apple-ink) !important;
+  font-size: clamp(34px, 4.2vw, 54px) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.055em !important;
+  line-height: 1.03 !important;
+}
+
+.empty-state > p {
+  margin: 15px 0 30px !important;
+  color: var(--apple-ink-soft) !important;
+  font-size: 13px !important;
+}
+
+.quick-grid {
+  width: min(640px, 100%) !important;
+  gap: 10px !important;
+}
+
+.quick-action {
+  position: relative;
+  min-height: 108px !important;
+  padding: 17px !important;
+  overflow: hidden;
+  color: var(--apple-ink) !important;
+  background: color-mix(in srgb, var(--apple-glass) 70%, transparent) !important;
+  border: 1px solid var(--apple-line) !important;
+  border-radius: 18px !important;
+  box-shadow: var(--apple-shadow-soft), inset 0 1px var(--apple-highlight) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(115%);
+  backdrop-filter: blur(22px) saturate(115%);
+  transition: transform 420ms var(--apple-spring), background 260ms ease, box-shadow 360ms ease !important;
+}
+
+.quick-action::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.24), transparent 48%);
+  opacity: 0;
+  transition: opacity 260ms ease;
+}
+
+.quick-action:hover {
+  background: var(--apple-glass-strong) !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.12), inset 0 1px var(--apple-highlight) !important;
+  transform: translateY(-5px) scale(1.012) !important;
+}
+
+.quick-action:hover::after {
+  opacity: 1;
+}
+
+.quick-action:active {
+  transform: translateY(-1px) scale(0.98) !important;
+}
+
+.quick-action svg {
+  color: var(--apple-ink) !important;
+}
+
+.quick-action span {
+  color: var(--apple-ink-faint) !important;
+}
+
+.message-row {
+  animation: apple-message-enter 460ms var(--apple-ease) both !important;
+}
+
+.message-avatar {
+  color: #fff !important;
+  background: #151515 !important;
+  border: 1px solid rgba(255, 255, 255, 0.13) !important;
+  border-radius: 11px !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15) !important;
+}
+
+.message-row--user .message-body {
+  color: var(--apple-ink) !important;
+  background: var(--apple-glass-strong) !important;
+  border: 1px solid var(--apple-line) !important;
+  border-radius: 19px 19px 6px 19px !important;
+  box-shadow: var(--apple-shadow-soft), inset 0 1px var(--apple-highlight) !important;
+  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
+}
+
+.message-copy,
+.message-copy code,
+.message-meta {
+  color: inherit;
+}
+
+.message-copy pre,
+.message-copy code,
+.workspace-panel__detail,
+.workspace-card,
+.workspace-step,
+.workspace-metric,
+.workspace-component-list > div,
+.workspace-reflection {
+  background: var(--apple-control) !important;
+  border-color: var(--apple-line) !important;
+}
+
+/* Floating composer */
+.composer-area {
+  position: relative !important;
+  z-index: 12 !important;
+  grid-row: 4 !important;
+  padding: 8px 26px 17px !important;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--apple-bg) 58%, transparent) 42%) !important;
+}
+
+.composer,
+.attachment-strip {
+  width: min(900px, 100%) !important;
+}
+
+.composer {
+  position: relative;
+  padding: 12px 13px 10px !important;
+  overflow: visible;
+  color: var(--apple-ink) !important;
+  background: color-mix(in srgb, var(--apple-glass-strong) 82%, transparent) !important;
+  border: 1px solid var(--apple-line-strong) !important;
+  border-radius: 21px !important;
+  box-shadow: 0 20px 54px rgba(0, 0, 0, 0.14), inset 0 1px var(--apple-highlight) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(125%);
+  backdrop-filter: blur(32px) saturate(125%);
+  transition: border-color 240ms ease, box-shadow 420ms var(--apple-ease), transform 420ms var(--apple-spring) !important;
+  animation: apple-composer-enter 720ms var(--apple-ease) 140ms both;
+}
+
+.composer::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.22), transparent 38%);
+  opacity: 0.7;
+}
+
+.composer:focus-within {
+  border-color: var(--apple-line-strong) !important;
+  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.18), inset 0 1px var(--apple-highlight) !important;
+  transform: translateY(-2px);
+}
+
+#composer-input {
+  position: relative;
+  z-index: 1;
+  color: var(--apple-ink) !important;
+  caret-color: var(--apple-ink);
+}
+
+#composer-input::placeholder {
+  color: var(--apple-ink-faint) !important;
+}
+
+.composer__bottom {
+  position: relative;
+  z-index: 2;
+}
+
+.tool-button,
+.icon-button {
+  color: var(--apple-ink-soft) !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  transition: color 200ms ease, background 220ms ease, transform 300ms var(--apple-spring) !important;
+}
+
+.tool-button:hover,
+.icon-button:hover {
+  color: var(--apple-ink) !important;
+  background: var(--apple-control) !important;
+  transform: translateY(-1px);
+}
+
+.tool-button.is-active {
+  color: var(--accent-text) !important;
+  background: var(--accent) !important;
+}
+
+.send-button {
+  width: 35px !important;
+  height: 35px !important;
+  color: var(--accent-text) !important;
+  background: var(--accent) !important;
+  border: 1px solid var(--apple-line-strong) !important;
+  border-radius: 50% !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.17), inset 0 1px var(--apple-highlight) !important;
+  transition: transform 360ms var(--apple-spring), box-shadow 280ms ease, opacity 200ms ease !important;
+}
+
+.send-button:hover:not(:disabled) {
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.22), inset 0 1px var(--apple-highlight) !important;
+  transform: translateY(-2px) scale(1.05) !important;
+}
+
+.send-button:active:not(:disabled) {
+  transform: scale(0.90) !important;
+}
+
+.composer-note {
+  color: var(--apple-ink-faint) !important;
+}
+
+/* Image studio becomes a precise monochrome glass sheet */
+.image-studio {
+  max-height: min(58vh, 520px);
+  padding: 13px 13px 14px !important;
+  margin: -2px -2px 12px !important;
+  overflow: auto;
+  color: var(--apple-ink) !important;
+  background: var(--apple-glass-soft) !important;
+  border: 1px solid var(--apple-line) !important;
+  border-radius: 16px !important;
+  box-shadow: inset 0 1px var(--apple-highlight) !important;
+  scrollbar-width: thin;
+  scrollbar-color: var(--apple-line-strong) transparent;
+  animation: apple-sheet-enter 480ms var(--apple-spring) both !important;
+}
+
+.image-studio__badge,
+.studio-choice.is-active,
+.subject-chip.is-active {
+  color: var(--accent-text) !important;
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  box-shadow: none !important;
+}
+
+.subject-chip,
+.studio-choice,
+.image-studio .studio-choice:not(.is-active) {
+  color: var(--apple-ink-soft) !important;
+  background: var(--apple-control) !important;
+  border: 1px solid var(--apple-line) !important;
+  border-radius: 10px !important;
+  box-shadow: inset 0 1px var(--apple-highlight) !important;
+  transition: color 200ms ease, background 220ms ease, transform 320ms var(--apple-spring) !important;
+}
+
+.subject-chip:hover,
+.studio-choice:hover,
+.image-studio .studio-choice:not(.is-active):hover {
+  color: var(--apple-ink) !important;
+  background: var(--apple-control-hover) !important;
+  transform: translateY(-2px);
+}
+
+.image-studio__header span,
+.image-studio__label,
+.image-studio__reference-hint {
+  color: var(--apple-ink-faint) !important;
+}
+
+/* Panels, dialogs and notifications */
+.workspace-panel {
+  position: absolute !important;
+  z-index: 15 !important;
+  inset: 78px 18px 18px !important;
+  color: var(--apple-ink) !important;
+  background: color-mix(in srgb, var(--apple-glass-strong) 90%, transparent) !important;
+  border: 1px solid var(--apple-line-strong) !important;
+  border-radius: 22px !important;
+  box-shadow: var(--apple-shadow), inset 0 1px var(--apple-highlight) !important;
+  -webkit-backdrop-filter: blur(36px) saturate(125%);
+  backdrop-filter: blur(36px) saturate(125%);
+  animation: apple-sheet-enter 480ms var(--apple-spring) both !important;
+}
+
+.workspace-card:hover,
+.workspace-card.is-active {
+  background: var(--apple-control-hover) !important;
+  border-color: var(--apple-line-strong) !important;
+  transform: translateX(3px);
+}
+
+.workspace-card__signal,
+.workspace-card__icon,
+.workspace-card__signal--ready,
+.workspace-card__signal--running,
+.workspace-card__signal--completed,
+.workspace-card__signal--failed {
+  color: var(--apple-ink) !important;
+  background: var(--apple-control) !important;
+  box-shadow: none !important;
+}
+
+.media-dialog,
+.drop-overlay > div,
+.toast {
+  color: var(--apple-ink) !important;
+  background: color-mix(in srgb, var(--apple-glass-strong) 90%, transparent) !important;
+  border: 1px solid var(--apple-line-strong) !important;
+  box-shadow: var(--apple-shadow), inset 0 1px var(--apple-highlight) !important;
+  -webkit-backdrop-filter: blur(34px) saturate(125%);
+  backdrop-filter: blur(34px) saturate(125%);
+}
+
+.toast {
+  border-radius: 14px !important;
+  animation: apple-toast-enter 440ms var(--apple-spring) both !important;
+}
+
+.drop-overlay {
+  background: color-mix(in srgb, var(--apple-bg) 60%, transparent) !important;
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+}
+
+button:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--apple-ink) !important;
+  outline-offset: 3px !important;
+}
+
+/* Motion language */
+@keyframes apple-app-enter {
+  from { opacity: 0; transform: scale(0.992); filter: blur(5px); }
+  to { opacity: 1; transform: scale(1); filter: blur(0); }
+}
+
+@keyframes apple-sidebar-enter {
+  from { opacity: 0; transform: translateX(-14px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes apple-panel-enter {
+  from { opacity: 0; transform: translateY(-8px) scale(0.988); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes apple-empty-enter {
+  from { opacity: 0; transform: translateY(18px) scale(0.985); filter: blur(4px); }
+  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+@keyframes apple-message-enter {
+  from { opacity: 0; transform: translateY(10px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes apple-composer-enter {
+  from { opacity: 0; transform: translateY(20px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes apple-sheet-enter {
+  from { opacity: 0; transform: translateY(10px) scale(0.975); filter: blur(4px); }
+  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+@keyframes apple-toast-enter {
+  from { opacity: 0; transform: translateY(12px) scale(0.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes apple-logo-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-4px) rotate(-1deg); }
+}
+
+@keyframes apple-indicator {
+  from { opacity: 0; transform: scaleY(0.25); }
+  to { opacity: 1; transform: scaleY(1); }
+}
+
+@keyframes apple-ambient {
+  from { transform: translate3d(-2%, -1%, 0) scale(1); }
+  to { transform: translate3d(8%, 5%, 0) scale(1.1); }
+}
+
+@media (max-width: 1040px) {
+  :root { --sidebar-width: 232px; }
+
+  .health-badge { display: none !important; }
+
+  .chat-content { width: min(820px, calc(100% - 34px)) !important; }
+}
+
+@media (max-width: 840px) {
+  .app-shell { grid-template-columns: 1fr !important; }
+
+  .sidebar {
+    position: fixed !important;
+    inset: var(--titlebar-height) auto 0 0 !important;
+    z-index: 50 !important;
+    width: min(286px, 86vw) !important;
+    transform: translateX(-105%);
+    transition: transform 440ms var(--apple-spring) !important;
+  }
+
+  .sidebar.is-open { transform: translateX(0); }
+
+  .main { grid-column: 1 !important; }
+
+  .mobile-sidebar-button { display: inline-flex !important; }
+
+  .chat-header { padding: 0 14px !important; }
+
+  .composer-area { padding-right: 14px !important; padding-left: 14px !important; }
+
+  .command-deck { margin-right: 14px !important; margin-left: 14px !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+/* Connected runtime adds data-theme after bootstrap. Keep the final product
+   monochrome even against legacy theme selectors with higher specificity. */
+:root[data-theme="light"] body,
+:root[data-theme="light"] #app,
+:root[data-theme="light"] .app-shell {
+  color: var(--apple-ink) !important;
+  background:
+    radial-gradient(circle at 17% 5%, rgba(255, 255, 255, 0.86), transparent 34%),
+    radial-gradient(circle at 86% 98%, rgba(255, 255, 255, 0.42), transparent 32%),
+    linear-gradient(145deg, var(--apple-bg), var(--apple-bg-deep)) !important;
+}
+
+:root[data-theme="dark"] body,
+:root[data-theme="dark"] #app,
+:root[data-theme="dark"] .app-shell {
+  color: var(--apple-ink) !important;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.085), transparent 34%),
+    radial-gradient(circle at 88% 100%, rgba(255, 255, 255, 0.045), transparent 31%),
+    linear-gradient(145deg, var(--apple-bg), var(--apple-bg-deep)) !important;
+}
+
+:root[data-theme="light"] .titlebar,
+:root[data-theme="dark"] .titlebar,
+:root[data-theme="light"] .chat-header,
+:root[data-theme="dark"] .chat-header,
+:root[data-theme="light"] .sidebar,
+:root[data-theme="dark"] .sidebar {
+  color: var(--apple-ink) !important;
+  background: color-mix(in srgb, var(--apple-glass) 82%, transparent) !important;
+  border-color: var(--apple-line) !important;
+  box-shadow: inset 0 1px var(--apple-highlight) !important;
+}
+
+:root[data-theme="light"] .main,
+:root[data-theme="dark"] .main {
+  color: var(--apple-ink) !important;
+  background: color-mix(in srgb, var(--apple-glass-soft) 45%, transparent) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: inset 0 1px var(--apple-highlight) !important;
+}
+
+:root[data-theme="light"] .new-chat-button,
+:root[data-theme="dark"] .new-chat-button {
+  color: #fff !important;
+  background: #171717 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 9px 24px rgba(0, 0, 0, 0.16), inset 0 1px rgba(255, 255, 255, 0.16) !important;
+}
+
+:root[data-theme="light"] .new-chat-button:hover,
+:root[data-theme="dark"] .new-chat-button:hover {
+  color: #fff !important;
+  background: #050505 !important;
+  box-shadow: 0 13px 30px rgba(0, 0, 0, 0.22), inset 0 1px rgba(255, 255, 255, 0.2) !important;
+}
+
+:root[data-theme="light"] .workspace-nav__item,
+:root[data-theme="dark"] .workspace-nav__item {
+  color: var(--apple-ink-soft) !important;
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+:root[data-theme="light"] .workspace-nav__item:hover,
+:root[data-theme="dark"] .workspace-nav__item:hover {
+  color: var(--apple-ink) !important;
+  background: var(--apple-control) !important;
+  border-color: transparent !important;
+}
+
+:root[data-theme="light"] .workspace-nav__item.is-active,
+:root[data-theme="dark"] .workspace-nav__item.is-active {
+  color: var(--apple-ink) !important;
+  background: var(--apple-glass-strong) !important;
+  border-color: var(--apple-line) !important;
+  box-shadow: var(--apple-shadow-soft), inset 0 1px var(--apple-highlight) !important;
+}
+
+:root[data-theme="light"] .workspace-nav__item.is-active .workspace-nav__icon,
+:root[data-theme="dark"] .workspace-nav__item.is-active .workspace-nav__icon,
+:root[data-theme="light"] .workspace-nav__icon,
+:root[data-theme="dark"] .workspace-nav__icon {
+  color: currentColor !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+:root[data-theme="light"] .session-item,
+:root[data-theme="dark"] .session-item {
+  color: var(--apple-ink) !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+:root[data-theme="light"] .session-item:hover,
+:root[data-theme="dark"] .session-item:hover,
+:root[data-theme="light"] .session-item.is-active,
+:root[data-theme="dark"] .session-item.is-active {
+  color: var(--apple-ink) !important;
+  background: var(--apple-control) !important;
+  border-color: var(--apple-line) !important;
+}
+
+:root[data-theme="light"] .command-deck,
+:root[data-theme="dark"] .command-deck,
+:root[data-theme="light"] .quick-action,
+:root[data-theme="dark"] .quick-action,
+:root[data-theme="light"] .composer,
+:root[data-theme="dark"] .composer,
+:root[data-theme="light"] .media-card,
+:root[data-theme="dark"] .media-card {
+  color: var(--apple-ink) !important;
+  background: color-mix(in srgb, var(--apple-glass-strong) 78%, transparent) !important;
+  border-color: var(--apple-line) !important;
+  box-shadow: var(--apple-shadow-soft), inset 0 1px var(--apple-highlight) !important;
+}
+
+:root[data-theme="light"] .send-button,
+:root[data-theme="dark"] .send-button,
+:root[data-theme="light"] .tool-button.is-active,
+:root[data-theme="dark"] .tool-button.is-active,
+:root[data-theme="light"] .studio-choice.is-active,
+:root[data-theme="dark"] .studio-choice.is-active,
+:root[data-theme="light"] .image-studio__badge,
+:root[data-theme="dark"] .image-studio__badge {
+  color: var(--accent-text) !important;
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  box-shadow: none !important;
+}
+
+:root[data-theme="light"] .message-row--user .message-body,
+:root[data-theme="dark"] .message-row--user .message-body {
+  color: var(--apple-ink) !important;
+  background: var(--apple-glass-strong) !important;
+  border-color: var(--apple-line) !important;
+  box-shadow: var(--apple-shadow-soft), inset 0 1px var(--apple-highlight) !important;
+}
+
+:root[data-theme="light"] .image-studio,
+:root[data-theme="dark"] .image-studio {
+  color: var(--apple-ink) !important;
+  background: var(--apple-glass-soft) !important;
+  border-color: var(--apple-line) !important;
+  box-shadow: inset 0 1px var(--apple-highlight) !important;
+}
+
+:root[data-theme="light"] .image-studio .studio-choice:not(.is-active),
+:root[data-theme="dark"] .image-studio .studio-choice:not(.is-active),
+:root[data-theme="light"] .subject-chip:not(.is-active),
+:root[data-theme="dark"] .subject-chip:not(.is-active) {
+  color: var(--apple-ink-soft) !important;
+  background: var(--apple-control) !important;
+  border-color: var(--apple-line) !important;
+}

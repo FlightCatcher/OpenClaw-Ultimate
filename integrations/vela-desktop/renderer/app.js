@@ -11,8 +11,8 @@ const translations = {
     attach: "文件",
     connected: "已连接",
     healthChecking: "本地服务检查中",
-    healthReady: "VELA 1.6 · 就绪",
-    healthDegraded: "VELA 1.6 · 部分服务离线",
+    healthReady: "VELA 1.7 · 就绪",
+    healthDegraded: "VELA 1.7 · 部分服务离线",
     healthMemory: "内存压力较高",
     connecting: "正在连接",
     disconnected: "连接中断",
@@ -138,8 +138,8 @@ const translations = {
     attach: "Attach",
     connected: "Connected",
     healthChecking: "Checking local services",
-    healthReady: "VELA 1.6 · Ready",
-    healthDegraded: "VELA 1.6 · Degraded",
+    healthReady: "VELA 1.7 · Ready",
+    healthDegraded: "VELA 1.7 · Degraded",
     healthMemory: "High memory pressure",
     connecting: "Connecting",
     disconnected: "Disconnected",
@@ -307,26 +307,6 @@ const els = {
   workspacePanelDetail: document.querySelector("#workspace-panel-detail"),
   toastRegion: document.querySelector("#toast-region")
 };
-
-// Keep the live workspace in the document root so the glass panel is never
-// clipped by the chat grid or its scrolling container.
-if (els.commandDeck && els.commandDeck.parentElement !== document.body) {
-  document.body.appendChild(els.commandDeck);
-}
-if (els.commandDeck) {
-  Object.assign(els.commandDeck.style, {
-    position: "fixed",
-    top: "134px",
-    left: "312px",
-    right: "30px",
-    height: "106px",
-    minHeight: "106px",
-    maxHeight: "106px",
-    zIndex: "9999",
-    display: "block",
-    overflow: "visible",
-  });
-}
 
 const query = new URLSearchParams(location.search);
 const appKey = query.get("appKey") ?? "";
