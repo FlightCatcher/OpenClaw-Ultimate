@@ -32,6 +32,22 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/openclaw_ultimate"]
 
+[tool.hatch.build.targets.sdist]
+include = [
+  "/src/openclaw_ultimate",
+  "/tests",
+  "/scripts",
+  "/configs",
+  "/prompts",
+  "/docs",
+  "/README.md",
+  "/CHANGELOG.md",
+  "/CONTRIBUTING.md",
+  "/LICENSE",
+  "/pyproject.toml",
+  "/uv.lock",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]

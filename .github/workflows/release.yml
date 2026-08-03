@@ -22,6 +22,19 @@ jobs:
       - run: uv run mypy src
       - run: uv run pytest
       - run: uv build
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: integrations/vela-desktop/package-lock.json
+      - name: Verify desktop renderer
+        working-directory: integrations/vela-desktop
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+        run: |
+          npm ci --ignore-scripts
+          npm test
+          npm audit --omit=dev
       - uses: softprops/action-gh-release@v2
         with:
           name: VELA ${{ github.ref_name }}

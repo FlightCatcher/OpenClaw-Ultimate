@@ -16,6 +16,9 @@ const OCU_PORT = 8765;
 const OCU_PROJECT_ROOT = process.env.OCU_PROJECT_ROOT ?? "E:\\Projects\\OpenClaw-Ultimate";
 const COMFY_INPUT_ROOT = "C:\\AI-Apps\\ComfyUI_windows_portable\\ComfyUI\\input";
 const COMFY_UPSCALE_ROOT = "C:\\AI-Apps\\ComfyUI_windows_portable\\ComfyUI\\models\\upscale_models";
+const COMFY_OUTPUT_ROOT = fs.existsSync("E:\\AI-Models\\Image-Generation")
+  ? "E:\\AI-Models\\Image-Generation\\Outputs"
+  : path.join(process.env.USERPROFILE ?? os.homedir(), ".openclaw", "media", "comfyui");
 const CHARACTER_MEMORY_ROOT = "E:\\AI-Models\\Image-Generation\\Character-Memory";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(__dirname, "..");
@@ -486,6 +489,17 @@ function comfyViewUrl(profile, item) {
   return `${profile.baseUrl}/view?${query.toString()}`;
 }
 
+function comfyOutputPath(item) {
+  if (String(item.type ?? "output") !== "output") return null;
+  const candidate = path.resolve(
+    COMFY_OUTPUT_ROOT,
+    String(item.subfolder ?? ""),
+    String(item.filename ?? "")
+  );
+  if (!isInside(candidate, COMFY_OUTPUT_ROOT) || !fs.existsSync(candidate)) return null;
+  return candidate;
+}
+
 async function downloadComfyImage(profile, item, tempDirectory) {
   const response = await fetch(comfyViewUrl(profile, item), { signal: AbortSignal.timeout(30000) });
   if (!response.ok) throw new Error(`ComfyUI output download failed (${response.status}).`);
@@ -715,8 +729,10 @@ async function generateComfyImage(config, prompt, settings = {}, attachments = [
             resolution: upscaled.resolution,
             upscaled: upscaled.upscaled,
             outputs: upscaled.images.map((item) => {
+              const localPath = comfyOutputPath(item);
               return {
                 filename: String(item.filename),
+                path: localPath,
                 viewUrl: comfyViewUrl(profile, item)
               };
             })
@@ -768,10 +784,7 @@ function startComfyUi() {
   const mainPath = path.join(portableRoot, "ComfyUI", "main.py");
   if (!fs.existsSync(pythonPath) || !fs.existsSync(mainPath)) return false;
 
-  const preferredOutput = "E:\\AI-Models\\Image-Generation\\Outputs";
-  const outputDirectory = fs.existsSync("E:\\AI-Models\\Image-Generation")
-    ? preferredOutput
-    : path.join(process.env.USERPROFILE ?? app.getPath("home"), ".openclaw", "media", "comfyui");
+  const outputDirectory = COMFY_OUTPUT_ROOT;
   fs.mkdirSync(outputDirectory, { recursive: true });
 
   const child = spawn(
@@ -1326,6 +1339,10 @@ function requestOcuJson(requestPath, method = "GET", payload = null, timeoutMs =
 async function ensureOcuApi() {
   if (ocuStartPromise) return ocuStartPromise;
   ocuStartPromise = (async () => {
+    // The full status route performs deep component checks and may exceed a
+    // cold-start timeout even when the API is already listening. Prefer a
+    // cheap loopback probe so desktop restarts never spawn duplicate servers.
+    if (await gatewayIsAvailable(OCU_PORT)) return true;
     try {
       await requestOcuJson("/v1/status", "GET", null, 1200);
       return true;
@@ -1345,7 +1362,7 @@ async function ensureOcuApi() {
         const uvCommand = uvCandidates.find((candidate) => candidate === "uv" || fs.existsSync(candidate)) ?? "uv";
         ocuProcess = spawn(
           uvCommand,
-          ["run", "--project", OCU_PROJECT_ROOT, "ocu", "serve", "--host", APP_HOST, "--port", String(OCU_PORT)],
+          ["run", "--no-sync", "--project", OCU_PROJECT_ROOT, "ocu", "serve", "--host", APP_HOST, "--port", String(OCU_PORT)],
           {
             cwd: OCU_PROJECT_ROOT,
             windowsHide: true,
@@ -1353,6 +1370,9 @@ async function ensureOcuApi() {
           }
         );
         ocuProcess.once("error", () => {
+          ocuProcess = null;
+        });
+        ocuProcess.once("exit", () => {
           ocuProcess = null;
         });
       } catch {

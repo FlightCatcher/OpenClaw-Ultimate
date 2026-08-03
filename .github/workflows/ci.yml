@@ -31,3 +31,24 @@ jobs:
         run: uv run pytest
       - name: Build package
         run: uv build
+
+  desktop:
+    runs-on: windows-latest
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: integrations/vela-desktop/package-lock.json
+      - name: Install desktop dependencies
+        working-directory: integrations/vela-desktop
+        run: npm ci --ignore-scripts
+      - name: Test desktop media handling
+        working-directory: integrations/vela-desktop
+        run: npm test
+      - name: Audit production dependencies
+        working-directory: integrations/vela-desktop
+        run: npm audit --omit=dev

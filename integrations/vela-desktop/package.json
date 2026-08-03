@@ -1,13 +1,14 @@
 {
   "name": "vela-desktop",
-  "version": "4.14.0",
+  "version": "4.16.0",
   "private": true,
   "type": "module",
   "description": "VELA local AI desktop powered by OpenClaw and DeepSeek.",
   "main": "src/main.mjs",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --win portable --x64"
+    "build": "electron-builder --win portable --x64",
+    "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
     "dompurify": "3.4.12",

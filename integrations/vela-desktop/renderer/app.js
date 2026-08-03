@@ -1,5 +1,8 @@
 import { marked } from "/deps/marked.js";
 import createDOMPurify from "/deps/purify.js";
+import { latestMessageByRole } from "./history.js";
+import { looksLikeImageGenerationRequest } from "./intents.js";
+import { resolveMediaUrl } from "./media.js";
 
 const DOMPurify = createDOMPurify(window);
 marked.setOptions({ breaks: true, gfm: true });
@@ -608,17 +611,8 @@ function normalizePath(value) {
     .replace(/[)\]}>,.;]+$/g, "");
 }
 
-function isLocalPath(value) {
-  return /^[A-Za-z]:[\\/]/.test(value) || value.startsWith("/");
-}
-
 function mediaUrl(value) {
-  const normalized = normalizePath(value);
-  if (/^(?:data:|blob:|https?:)/i.test(normalized)) return normalized;
-  if (isLocalPath(normalized)) {
-    return `/media?appKey=${encodeURIComponent(appKey)}&path=${encodeURIComponent(normalized)}`;
-  }
-  return normalized;
+  return resolveMediaUrl(value, { appKey });
 }
 
 function mediaKind(value, mimeType = "") {
@@ -1491,7 +1485,7 @@ async function sendMessage() {
   const rawText = els.composerInput.value.trim();
   if (!rawText && state.attachments.length === 0) return;
 
-  const isImageRequest = state.imageMode;
+  const isImageRequest = state.imageMode || looksLikeImageGenerationRequest(rawText);
   const wireText = isImageRequest ? imageStudioMessage(rawText) : rawText;
   const attachments = attachmentPayloads();
   const runId = crypto.randomUUID();
@@ -1514,6 +1508,15 @@ async function sendMessage() {
     detail: isImageRequest ? t("progressEstimate") : ""
   };
   if (isImageRequest) startImageStatusPolling();
+  if (isImageRequest) {
+    saveLocalImageMessage({
+      role: "user",
+      content: rawText || t("noText"),
+      timestamp: sentAt,
+      imageRunId: `${runId}:request`
+    });
+    state.optimistic = null;
+  }
   const title = currentSession()?.title;
   if (!title || title === translations.zh.untitled || title === translations.en.untitled) {
     updateCurrentSession({ title: messageTitle(rawText), updatedAt: sentAt });
@@ -1548,7 +1551,7 @@ async function sendMessage() {
       const imageMessage = {
         role: "assistant",
         content: [
-          outputs.map((output) => `MEDIA: ${output.viewUrl}`).join("\n"),
+          outputs.map((output) => `MEDIA: ${output.path || output.viewUrl}`).join("\n"),
           payload.width && payload.height
             ? `\n${state.language === "zh" ? "已生成" : "Generated"} ${payload.width}×${payload.height} · ${payload.resolution ?? "4K"}`
             : ""
@@ -1658,7 +1661,7 @@ async function refreshHistory(forceScroll = false) {
         extractMessageParts(message).media.some((item) => !knownMedia.has(item.raw))
       )
     ];
-    const newestVisible = [...next].reverse().find(hasVisibleContent);
+    const newestVisible = latestMessageByRole(next.filter(hasVisibleContent), "assistant");
     if (
       state.pending &&
       newestVisible?.role === "assistant" &&

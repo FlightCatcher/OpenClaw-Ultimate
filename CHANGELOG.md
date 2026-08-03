@@ -1,5 +1,16 @@
 # Changelog
 
+## VELA Desktop 4.16.0 — reliable image completion - 2026-08-03
+
+- Restored rendering for historical ComfyUI records persisted as relative `view?...` URLs when the underlying output still exists.
+- Added deterministic desktop media URL tests for ComfyUI, local files and absolute web data.
+- Kept local file media behind the authenticated, workspace-restricted desktop endpoint.
+- Automatically routes explicit natural-language image requests to the local ComfyUI pipeline without requiring the Image button first.
+- Persists direct image prompts together with their generated media so image conversations survive a desktop restart.
+- Correctly ends the working state when OpenClaw returns histories in newest-first or oldest-first order.
+- Prevents duplicate OCU API processes by probing the loopback port before running deep health checks or starting a server.
+- Preserved the VELA 1.8 liquid-glass desktop experience while hardening image history.
+
 ## VELA 1.6.0 — liquid glass UI and image model studio - 2026-08-03
 
 - Rebuilt the desktop layout around a stable grid so the workflow deck, chat stream, composer and workspace panel no longer cover each other.
