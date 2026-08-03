@@ -1,5 +1,13 @@
 # Changelog
 
+## VELA 1.5 UI refinement - 2026-08-03
+
+- Reworked the desktop shell into a monochrome black, white and graphite glass system.
+- Removed visible blue accents, animated scan effects and colorful status indicators.
+- Replaced workspace glyphs with larger, restrained line icons and improved hit areas.
+- Simplified the command deck, composer, image studio, status cards and session list.
+- Preserved light and dark modes while keeping both themes within the same neutral visual language.
+
 ## VELA 1.5.0 - 2026-08-03
 
 - Added a live local health badge for the OpenClaw Gateway, ComfyUI, Ollama and OCU services.
