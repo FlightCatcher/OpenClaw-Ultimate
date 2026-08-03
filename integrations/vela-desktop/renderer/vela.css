@@ -147,6 +147,56 @@ body,
   scroll-behavior: smooth;
 }
 
+.session-item-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px;
+  align-items: stretch;
+  border-radius: 14px;
+  transition: background 220ms var(--ease-standard), transform 220ms var(--ease-spring);
+}
+
+.session-item-wrap:hover,
+.session-item-wrap.is-active {
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.session-item-wrap:hover {
+  transform: translateX(2px);
+}
+
+.session-item__delete {
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted, #8e8e97);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 180ms ease, color 180ms ease, background 180ms ease;
+}
+
+.session-item-wrap:hover .session-item__delete,
+.session-item-wrap.is-active .session-item__delete,
+.session-item__delete:focus-visible {
+  opacity: 1;
+}
+
+.session-item__delete:hover {
+  color: #f0738c;
+  background: rgba(240, 115, 140, 0.14);
+}
+
+.session-item__delete svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .session-item {
   border: 1px solid transparent;
   transition:

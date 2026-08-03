@@ -13,6 +13,9 @@ const APP_HOST = "127.0.0.1";
 const COMFY_PORT = 8188;
 const OCU_PORT = 8765;
 const OCU_PROJECT_ROOT = process.env.OCU_PROJECT_ROOT ?? "E:\\Projects\\OpenClaw-Ultimate";
+const COMFY_INPUT_ROOT = "C:\\AI-Apps\\ComfyUI_windows_portable\\ComfyUI\\input";
+const COMFY_UPSCALE_ROOT = "C:\\AI-Apps\\ComfyUI_windows_portable\\ComfyUI\\models\\upscale_models";
+const CHARACTER_MEMORY_ROOT = "E:\\AI-Models\\Image-Generation\\Character-Memory";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(__dirname, "..");
 const rendererRoot = path.join(appRoot, "renderer");
@@ -98,7 +101,7 @@ function readRequestBody(req) {
     let size = 0;
     req.on("data", (chunk) => {
       size += chunk.length;
-      if (size > 64 * 1024) {
+      if (size > 40 * 1024 * 1024) {
         req.destroy(new Error("Request body is too large"));
         return;
       }
@@ -161,12 +164,25 @@ function imageEngine(settings = {}) {
 
 function imageDimensions(settings = {}) {
   const dimensions = {
-    square: [640, 640],
-    landscape: [768, 576],
-    portrait: [576, 768],
-    classic: [704, 528],
+    square: [768, 768],
+    landscape: [768, 432],
+    portrait: [432, 768],
+    classic: [768, 576],
     vertical: [576, 768],
-    photo: [768, 576]
+    photo: [768, 512]
+  };
+  const [width, height] = dimensions[String(settings?.aspect ?? "landscape")] ?? dimensions.landscape;
+  return { width, height };
+}
+
+function imageOutputDimensions(settings = {}) {
+  const dimensions = {
+    square: [3840, 3840],
+    landscape: [3840, 2160],
+    portrait: [2160, 3840],
+    classic: [3840, 2880],
+    vertical: [2880, 3840],
+    photo: [3840, 2560]
   };
   const [width, height] = dimensions[String(settings?.aspect ?? "landscape")] ?? dimensions.landscape;
   return { width, height };
@@ -200,7 +216,7 @@ function isImageUrl(value) {
 }
 
 async function searchReferenceImage(prompt) {
-  const query = `${String(prompt).trim()} 角色 设定图 插画`;
+  const query = `"${String(prompt).trim().slice(0, 180)}" official character sheet reference illustration`;
   const searchUrl = `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&form=HDRSC2`;
   const response = await fetch(searchUrl, {
     headers: {
@@ -225,7 +241,54 @@ async function searchReferenceImage(prompt) {
     if (candidates.length >= 8) break;
   }
   if (!candidates.length) throw new Error("No usable reference image was found.");
-  return candidates;
+  const terms = String(prompt).toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((term) => term.length > 1);
+  return candidates.sort((left, right) => {
+    const score = (value) => terms.reduce((total, term) => total + (value.toLowerCase().includes(term) ? 3 : 0), 0);
+    return score(right) - score(left);
+  });
+}
+
+function memoryIndexPath() {
+  return path.join(CHARACTER_MEMORY_ROOT, "index.json");
+}
+
+function readCharacterMemory() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(memoryIndexPath(), "utf8"));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function normalizedMemoryPrompt(prompt) {
+  return String(prompt ?? "").toLowerCase().replace(/\s+/g, " ").trim().slice(0, 240);
+}
+
+function findCharacterMemory(prompt) {
+  const normalized = normalizedMemoryPrompt(prompt);
+  if (!normalized) return null;
+  return readCharacterMemory()
+    .filter((item) => item?.prompt && item?.path && fs.existsSync(item.path))
+    .sort((left, right) => Number(right.updatedAt ?? 0) - Number(left.updatedAt ?? 0))
+    .find((item) => normalized.includes(String(item.prompt).slice(0, 100)) || String(item.prompt).includes(normalized.slice(0, 100))) ?? null;
+}
+
+function saveCharacterMemory(prompt, sourcePath) {
+  if (!sourcePath || !fs.existsSync(sourcePath)) return null;
+  fs.mkdirSync(CHARACTER_MEMORY_ROOT, { recursive: true });
+  const digest = crypto.createHash("sha256").update(normalizedMemoryPrompt(prompt)).digest("hex").slice(0, 20);
+  const extension = path.extname(sourcePath).toLowerCase() === ".png" ? ".png" : ".jpg";
+  const destination = path.join(CHARACTER_MEMORY_ROOT, `${digest}${extension}`);
+  fs.copyFileSync(sourcePath, destination);
+  const entries = readCharacterMemory().filter((item) => item?.path !== destination);
+  entries.push({
+    prompt: normalizedMemoryPrompt(prompt),
+    path: destination,
+    updatedAt: Date.now()
+  });
+  fs.writeFileSync(memoryIndexPath(), JSON.stringify(entries.slice(-100), null, 2), "utf8");
+  return destination;
 }
 
 async function downloadReferenceImage(url, tempDirectory) {
@@ -259,21 +322,36 @@ async function uploadReferenceImage(baseUrl, filePath) {
 }
 
 function removeUploadedReference(uploadedName) {
-  const inputRoot = path.resolve("C:\\AI-Apps\\ComfyUI_windows_portable\\ComfyUI\\input");
+  const inputRoot = path.resolve(COMFY_INPUT_ROOT);
   const candidate = path.resolve(inputRoot, uploadedName);
   if (!isInside(candidate, inputRoot)) return;
   if (fs.existsSync(candidate)) fs.rmSync(candidate, { force: true });
 }
 
-async function createReferenceContext(profile, prompt) {
+async function createReferenceContext(profile, prompt, attachments = []) {
   if (!fs.existsSync(profile.referenceWorkflowPath)) throw new Error("Reference workflow is not installed.");
   const tempDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "vela-reference-"));
   let uploadedName = "";
   try {
-    const candidates = await searchReferenceImage(prompt);
     let localPath;
+    let source = "search";
+    const attachment = attachments.find((item) => item?.type === "image" && item?.content);
+    if (attachment) {
+      const mime = String(attachment.mimeType ?? "image/png").split(";", 1)[0];
+      const extension = mime.includes("jpeg") || mime.includes("jpg") ? ".jpg" : ".png";
+      localPath = path.join(tempDirectory, `user-reference${extension}`);
+      fs.writeFileSync(localPath, Buffer.from(String(attachment.content), "base64"));
+      source = "user";
+    }
+    const memory = localPath ? null : findCharacterMemory(prompt);
+    if (memory) {
+      localPath = path.join(tempDirectory, `memory-reference${path.extname(memory.path) || ".png"}`);
+      fs.copyFileSync(memory.path, localPath);
+      source = "memory";
+    }
+    const candidates = localPath ? [] : await searchReferenceImage(prompt);
     let lastError;
-    for (const candidate of candidates) {
+    for (const candidate of candidates.slice(0, 5)) {
       try {
         localPath = await downloadReferenceImage(candidate, tempDirectory);
         break;
@@ -283,22 +361,118 @@ async function createReferenceContext(profile, prompt) {
     }
     if (!localPath) throw lastError ?? new Error("No downloadable reference image was found.");
     uploadedName = await uploadReferenceImage(profile.baseUrl, localPath);
-    return { uploadedName, tempDirectory };
+    return { uploadedName, tempDirectory, localPath, source };
   } catch (error) {
     fs.rmSync(tempDirectory, { recursive: true, force: true });
     throw error;
   }
 }
 
-async function generateComfyImage(config, prompt, settings = {}) {
+function comfyViewUrl(profile, item) {
+  const query = new URLSearchParams({
+    filename: String(item.filename),
+    subfolder: String(item.subfolder ?? ""),
+    type: String(item.type ?? "output")
+  });
+  return `${profile.baseUrl}/view?${query.toString()}`;
+}
+
+async function downloadComfyImage(profile, item, tempDirectory) {
+  const response = await fetch(comfyViewUrl(profile, item), { signal: AbortSignal.timeout(30000) });
+  if (!response.ok) throw new Error(`ComfyUI output download failed (${response.status}).`);
+  const filePath = path.join(tempDirectory, `generated-${crypto.randomUUID()}.png`);
+  fs.writeFileSync(filePath, Buffer.from(await response.arrayBuffer()));
+  return filePath;
+}
+
+async function upscaleGeneratedOutputs(profile, images, settings, route) {
+  const modelName = route === "anime" ? "RealESRGAN_x4plus_anime_6B.pth" : "RealESRGAN_x4plus.pth";
+  const modelPath = path.join(COMFY_UPSCALE_ROOT, modelName);
+  const targets = imageOutputDimensions(settings);
+  if (!fs.existsSync(modelPath) || !images.length) {
+    return { images, ...targets, resolution: "base", upscaled: false };
+  }
+
+  const tempDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "vela-upscale-"));
+  const uploadedNames = [];
+  try {
+    const resultImages = [];
+    for (const source of images) {
+      const sourcePath = await downloadComfyImage(profile, source, tempDirectory);
+      const uploadedName = await uploadReferenceImage(profile.baseUrl, sourcePath);
+      uploadedNames.push(uploadedName);
+      const workflow = {
+        "1": {
+          inputs: { image: uploadedName },
+          class_type: "LoadImage"
+        },
+        "2": {
+          inputs: { model_name: modelName },
+          class_type: "UpscaleModelLoader"
+        },
+        "3": {
+          inputs: { upscale_model: ["2", 0], image: ["1", 0] },
+          class_type: "ImageUpscaleWithModel"
+        },
+        "4": {
+          inputs: {
+            image: ["3", 0],
+            upscale_method: "lanczos",
+            width: targets.width,
+            height: targets.height,
+            crop: "disabled"
+          },
+          class_type: "ImageScale"
+        },
+        "5": {
+          inputs: { filename_prefix: "VELA-4K", images: ["4", 0] },
+          class_type: "SaveImage"
+        }
+      };
+      const queued = await fetch(`${profile.baseUrl}/prompt`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: workflow, client_id: `vela-upscale-${crypto.randomUUID()}` })
+      });
+      if (!queued.ok) throw new Error(`ComfyUI upscale queue failed (${queued.status}).`);
+      const promptId = String((await queued.json())?.prompt_id ?? "");
+      if (!promptId) throw new Error("ComfyUI did not return an upscale prompt id.");
+      const deadline = Date.now() + profile.timeoutMs;
+      while (Date.now() < deadline) {
+        const history = await fetch(`${profile.baseUrl}/history/${encodeURIComponent(promptId)}`);
+        if (history.ok) {
+          const record = (await history.json())?.[promptId];
+          const output = record?.outputs?.["5"]?.images;
+          if (Array.isArray(output) && output.length) {
+            resultImages.push(...output.filter((item) => item?.filename));
+            break;
+          }
+          if (record?.status?.status_str === "error") throw new Error("ComfyUI reported an upscale error.");
+        }
+        await new Promise((resolve) => setTimeout(resolve, Math.max(300, profile.pollIntervalMs)));
+      }
+      if (!resultImages.length) throw new Error("ComfyUI upscale timed out.");
+    }
+    return { images: resultImages, ...targets, resolution: "4K", upscaled: true };
+  } finally {
+    uploadedNames.forEach(removeUploadedReference);
+    fs.rmSync(tempDirectory, { recursive: true, force: true });
+  }
+}
+
+async function generateComfyImage(config, prompt, settings = {}, attachments = []) {
   const profile = readComfyProfile(config);
   const engine = imageEngine(settings);
-  const useReference = engine === "anime" && settings?.reference !== "off" && settings?.referenceSearch !== false && Boolean(settings?.referenceSearch || settings?.reference === "strict" || /(有兽焉|角色|人物|陌生角色|同人|ip-adapter|reference)/i.test(prompt));
+  const hasUserReference = attachments.some((item) => item?.type === "image" && item?.content);
+  const hasMemoryReference = Boolean(findCharacterMemory(prompt));
+  const useReference = engine === "anime" && settings?.reference !== "off" && settings?.referenceSearch !== false && Boolean(
+    hasUserReference || hasMemoryReference || settings?.referenceSearch || settings?.reference === "strict" || /(有兽焉|角色|人物|陌生角色|同人|ip-adapter|reference|character|角色设定)/i.test(prompt)
+  );
   let referenceContext;
   let uploadedReferenceName = "";
   try {
     if (useReference && fs.existsSync(profile.referenceWorkflowPath)) {
-      referenceContext = await createReferenceContext(profile, prompt);
+      referenceContext = await createReferenceContext(profile, prompt, attachments);
       uploadedReferenceName = referenceContext.uploadedName;
     }
   } catch (error) {
@@ -367,20 +541,24 @@ async function generateComfyImage(config, prompt, settings = {}) {
         const outputNodeId = engine === "flux2" ? profile.fluxOutputNodeId : profile.outputNodeId;
         const images = record?.outputs?.[outputNodeId]?.images;
         if (Array.isArray(images) && images.length) {
+          const upscaled = await upscaleGeneratedOutputs(profile, images, settings, route);
+          if (referenceContext?.source === "user" && settings?.memory !== "once") {
+            saveCharacterMemory(prompt, referenceContext.localPath);
+          }
           return {
             promptId,
             engine,
             route,
             referenceUsed: Boolean(referenceContext),
-            outputs: images.filter((item) => item?.filename).map((item) => {
-              const query = new URLSearchParams({
-                filename: String(item.filename),
-                subfolder: String(item.subfolder ?? ""),
-                type: String(item.type ?? "output")
-              });
+            referenceSource: referenceContext?.source ?? "none",
+            width: upscaled.width,
+            height: upscaled.height,
+            resolution: upscaled.resolution,
+            upscaled: upscaled.upscaled,
+            outputs: upscaled.images.map((item) => {
               return {
                 filename: String(item.filename),
-                viewUrl: `${profile.baseUrl}/view?${query.toString()}`
+                viewUrl: comfyViewUrl(profile, item)
               };
             })
           };
@@ -653,7 +831,8 @@ function createServer(openClaw) {
         }
         const config = JSON.parse(fs.readFileSync(openClaw.configPath, "utf8"));
         const settings = payload?.settings && typeof payload.settings === "object" ? payload.settings : {};
-        sendJson(res, 200, await generateComfyImage(config, prompt, settings));
+        const attachments = Array.isArray(payload?.attachments) ? payload.attachments.slice(0, 2) : [];
+        sendJson(res, 200, await generateComfyImage(config, prompt, settings, attachments));
         return;
       }
 

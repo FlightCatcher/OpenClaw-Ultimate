@@ -330,6 +330,7 @@ const defaultImageSettings = {
   engine: "anime",
   quality: "high",
   reference: "smart",
+  memory: "remember",
   style: "auto",
   textMode: "auto"
 };
@@ -359,6 +360,7 @@ const state = {
   refreshTimer: null,
   renderedMessagesKey: "",
   sessions: loadSessions(),
+  localImageMessages: loadLocalImageMessages(),
   theme: loadTheme(),
   workspaceView: "chat",
   workspaceData: {
@@ -401,6 +403,7 @@ function loadImageSettings() {
       reference: ["smart", "strict", "off"].includes(parsed.reference)
         ? parsed.reference
         : defaultImageSettings.reference,
+      memory: ["remember", "once"].includes(parsed.memory) ? parsed.memory : defaultImageSettings.memory,
       style: ["auto", "natural", "cinematic", "photo", "anime", "illustration", "product"].includes(parsed.style)
         ? parsed.style
         : defaultImageSettings.style,
@@ -411,6 +414,39 @@ function loadImageSettings() {
   } catch {
     return { ...defaultImageSettings };
   }
+}
+
+function loadLocalImageMessages() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem("vela.desktop.imageMessages") ?? "{}");
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveLocalImageMessages() {
+  const entries = Object.fromEntries(
+    Object.entries(state.localImageMessages).map(([key, messages]) => [
+      key,
+      Array.isArray(messages) ? messages.slice(-20) : []
+    ])
+  );
+  localStorage.setItem("vela.desktop.imageMessages", JSON.stringify(entries));
+}
+
+function localMessagesForSession(sessionKey = currentSessionKey) {
+  return Array.isArray(state.localImageMessages[sessionKey]) ? state.localImageMessages[sessionKey] : [];
+}
+
+function saveLocalImageMessage(message, sessionKey = currentSessionKey) {
+  const messages = localMessagesForSession(sessionKey);
+  const signature = `${message?.imageRunId ?? ""}:${message?.content ?? ""}`;
+  if (!messages.some((item) => `${item?.imageRunId ?? ""}:${item?.content ?? ""}` === signature)) {
+    messages.push(message);
+  }
+  state.localImageMessages[sessionKey] = messages.slice(-20);
+  saveLocalImageMessages();
 }
 
 function saveImageSettings() {
@@ -461,6 +497,37 @@ function newSession() {
   renderAll(true);
   if (state.connected) void refreshHistory(true);
   requestAnimationFrame(() => els.composerInput.focus());
+}
+
+function deleteSession(key) {
+  const target = state.sessions.find((session) => session.key === key);
+  if (!target) return;
+  const confirmed = window.confirm(
+    state.language === "zh"
+      ? `删除“${target.title || t("untitled")}”？此操作会从 VELA 的本地会话列表移除。`
+      : `Delete “${target.title || t("untitled")}” from VELA?`
+  );
+  if (!confirmed) return;
+
+  state.sessions = state.sessions.filter((session) => session.key !== key);
+  delete state.localImageMessages[key];
+  if (currentSessionKey === key || !state.sessions.length) {
+    const replacement = {
+      key: `agent:main:desktop-${crypto.randomUUID()}`,
+      title: t("untitled"),
+      updatedAt: Date.now()
+    };
+    state.sessions.unshift(replacement);
+    currentSessionKey = replacement.key;
+    state.history = [];
+    state.optimistic = null;
+    state.pending = false;
+    state.activeRunId = null;
+  }
+  saveLocalImageMessages();
+  saveSessions();
+  renderAll(true);
+  if (state.connected) void refreshHistory(true);
 }
 
 function setSession(key) {
@@ -636,7 +703,18 @@ function hasVisibleContent(message) {
 }
 
 function visibleMessages() {
-  const messages = state.history.filter(hasVisibleContent);
+  const seen = new Set();
+  const messages = [...state.history, ...localMessagesForSession()]
+    .filter(hasVisibleContent)
+    .filter((message) => {
+      const parts = extractMessageParts(message);
+      const signature = message?.imageRunId
+        ? `image:${message.imageRunId}`
+        : `${message?.role ?? ""}:${parts.text}:${parts.media.map((item) => item.raw).join(",")}:${message?.timestamp ?? ""}`;
+      if (seen.has(signature)) return false;
+      seen.add(signature);
+      return true;
+    });
   if (state.optimistic) {
     const optimisticText = cleanUserText(contentText(state.optimistic.content));
     const exists = messages.some(
@@ -858,7 +936,8 @@ function renderSessions() {
   els.sessionList.innerHTML = state.sessions
     .map(
       (session) => `
-        <button class="session-item ${session.key === currentSessionKey ? "is-active" : ""}" type="button" data-session="${escapeHtml(session.key)}">
+        <div class="session-item-wrap ${session.key === currentSessionKey ? "is-active" : ""}">
+        <button class="session-item" type="button" data-session="${escapeHtml(session.key)}">
           <span class="session-item__icon">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14v10H9l-4 3z"></path></svg>
           </span>
@@ -867,10 +946,20 @@ function renderSessions() {
             <span class="session-item__time">${escapeHtml(formatTime(session.updatedAt))}</span>
           </span>
         </button>`
+        + `<button class="session-item__delete" type="button" data-delete-session="${escapeHtml(session.key)}" aria-label="${escapeHtml(state.language === "zh" ? "删除会话" : "Delete chat")}" title="${escapeHtml(state.language === "zh" ? "删除会话" : "Delete chat")}">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12M9 7V5h6v2m-7 0 1 13h6l1-13M10 11v5m4-5v5" /></svg>
+        </button>
+        </div>`
     )
     .join("");
   els.sessionList.querySelectorAll("[data-session]").forEach((button) => {
     button.addEventListener("click", () => setSession(button.dataset.session));
+  });
+  els.sessionList.querySelectorAll("[data-delete-session]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      deleteSession(button.dataset.deleteSession);
+    });
   });
 }
 
@@ -1402,20 +1491,37 @@ async function sendMessage() {
           "Content-Type": "application/json",
           "X-OpenClaw-App-Key": appKey
         },
-        body: JSON.stringify({ prompt: rawText, settings: state.imageSettings })
+        body: JSON.stringify({
+          prompt: rawText,
+          settings: state.imageSettings,
+          attachments: attachments.filter((item) => item.type === "image").slice(0, 1)
+        })
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || t("sendFailed"));
       const outputs = Array.isArray(payload.outputs) ? payload.outputs : [];
       if (!outputs.length) throw new Error("ComfyUI returned no image output.");
-      state.history = [
-        ...state.history,
-        {
-          role: "assistant",
-          content: outputs.map((output) => `MEDIA: ${output.viewUrl}`).join("\n"),
-          timestamp: Date.now()
+      const imageMessage = {
+        role: "assistant",
+        content: [
+          outputs.map((output) => `MEDIA: ${output.viewUrl}`).join("\n"),
+          payload.width && payload.height
+            ? `\n${state.language === "zh" ? "已生成" : "Generated"} ${payload.width}×${payload.height} · ${payload.resolution ?? "4K"}`
+            : ""
+        ].join(""),
+        timestamp: Date.now(),
+        imageRunId: payload.promptId || runId,
+        imageMetadata: {
+          width: payload.width,
+          height: payload.height,
+          resolution: payload.resolution ?? "4K",
+          engine: payload.engine,
+          referenceUsed: payload.referenceUsed,
+          referenceSource: payload.referenceSource
         }
-      ];
+      };
+      saveLocalImageMessage(imageMessage);
+      state.history = [...state.history];
       state.pending = false;
       state.activeRunId = null;
       state.optimistic = null;
@@ -1485,7 +1591,16 @@ async function refreshHistory(forceScroll = false) {
       ? result.messages.map(normalizeHistoryMessage)
       : [];
     const previousVisibleCount = state.history.filter(hasVisibleContent).length;
-    state.history = next;
+    const localImages = localMessagesForSession(requestedKey);
+    const knownMedia = new Set(
+      next.flatMap((message) => extractMessageParts(message).media.map((item) => item.raw))
+    );
+    state.history = [
+      ...next,
+      ...localImages.filter((message) =>
+        extractMessageParts(message).media.some((item) => !knownMedia.has(item.raw))
+      )
+    ];
     const newestVisible = [...next].reverse().find(hasVisibleContent);
     if (
       state.pending &&
