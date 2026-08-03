@@ -146,8 +146,15 @@ switch engines mid-run, or loop beyond the declared attempt limit.
    - For a photographic human portrait, use `--identity-mode face`; for anime,
      animals, products, full-body costumes, or general style references, use
      `--identity-mode general`. `auto` selects face mode for photographic pipelines.
+   - Use `--identity-mode anchor` for the first identity calibration of an obscure
+     character or after repeated sub-90 reviews. It uses the clearest first reference
+     at very low denoise to establish a canonical portrait. Anchor acceptance combines
+     deterministic same-composition pixel similarity with the local vision review.
+     Do not claim that an anchor validates arbitrary new poses; those remain subject
+     to the normal strict visual gate and may require a character-specific LoRA.
    - `smart` and `strict`: keep `--engine auto`. Anime/2D identities use Animagine
-     XL Opt with general IP-Adapter; photographic people use RealVisXL with the
+     XL Opt with general IP-Adapter plus a low-denoise full-body structural anchor;
+     photographic people use RealVisXL with the
      face adapter; text-heavy and non-anime reference edits use FLUX.2.
    - `off`: omit reference arguments
 7. After a successful verified generation, run:

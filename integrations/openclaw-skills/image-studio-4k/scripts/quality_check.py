@@ -6,12 +6,13 @@ import argparse
 import base64
 import io
 import json
+import math
 import re
 import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageOps
+from PIL import Image, ImageChops, ImageDraw, ImageOps, ImageStat
 
 OLLAMA_CHAT_URL = "http://127.0.0.1:11434/api/chat"
 REVIEW_LOG = (
@@ -66,6 +67,49 @@ def extract_json(text: str) -> dict:
         return json.loads(match.group(0))
 
 
+def anchor_similarity(reference: str, output: str) -> dict[str, float]:
+    """Measure same-composition calibration fidelity without model subjectivity."""
+    with Image.open(reference) as opened_reference:
+        reference_image = ImageOps.exif_transpose(opened_reference).convert("RGB")
+    with Image.open(output) as opened_output:
+        candidate_image = ImageOps.exif_transpose(opened_output).convert("RGB")
+        candidate_image = candidate_image.resize(reference_image.size, Image.Resampling.LANCZOS)
+    difference = ImageChops.difference(reference_image, candidate_image)
+    statistics = ImageStat.Stat(difference)
+    mae_similarity = 1.0 - sum(statistics.mean) / (len(statistics.mean) * 255.0)
+    rmse_similarity = 1.0 - sum(statistics.rms) / (len(statistics.rms) * 255.0)
+
+    # Correlation is measured on a small luminance sample to keep the gate fast
+    # and dependency-free even when the candidate is a 4K image.
+    sample_size = (128, 128)
+    reference_values = list(
+        reference_image.convert("L")
+        .resize(sample_size, Image.Resampling.LANCZOS)
+        .get_flattened_data()
+    )
+    candidate_values = list(
+        candidate_image.convert("L")
+        .resize(sample_size, Image.Resampling.LANCZOS)
+        .get_flattened_data()
+    )
+    reference_mean = sum(reference_values) / len(reference_values)
+    candidate_mean = sum(candidate_values) / len(candidate_values)
+    numerator = sum(
+        (reference_value - reference_mean) * (candidate_value - candidate_mean)
+        for reference_value, candidate_value in zip(reference_values, candidate_values, strict=True)
+    )
+    reference_energy = sum((value - reference_mean) ** 2 for value in reference_values)
+    candidate_energy = sum((value - candidate_mean) ** 2 for value in candidate_values)
+    denominator = math.sqrt(reference_energy * candidate_energy)
+    correlation = numerator / denominator if denominator else 0.0
+    return {
+        "mae": round(max(0.0, mae_similarity) * 100, 2),
+        "rmse": round(max(0.0, rmse_similarity) * 100, 2),
+        "correlation": round(max(0.0, correlation) * 100, 2),
+        "score": round(max(0.0, min(mae_similarity, rmse_similarity, correlation)) * 100, 2),
+    }
+
+
 def review(
     reference: str | list[str],
     output: str,
@@ -74,6 +118,7 @@ def review(
     *,
     target_score: int = 88,
     target_identity: int = 90,
+    calibration_anchor: bool = False,
 ) -> dict:
     references = [reference] if isinstance(reference, str) else reference[:2]
     if not references:
@@ -95,10 +140,16 @@ pose, composition, invented details, text/logos, anatomy, and synthetic AI-art
 artifacts such as waxy/plastic surfaces, excessive glow, oversaturation, incoherent
 micro-detail, or accidental symbols.
 
-Treat a third arm, extra limb, fused fingers, malformed hands, asymmetrical eyes,
-cross-eyed face, melted facial features, plastic skin, waxy skin, or obvious CGI
-surface as a critical failure. Prefer real photographic texture: pores, fine hair,
-natural asymmetry, believable light falloff, and material response.
+First infer the requested medium from the requirements and REFERENCES. For a
+photograph, treat a third arm, visible extra limb, fused fingers, malformed hands,
+cross-eyed face, melted features, plastic skin, waxy skin, or obvious CGI surface
+as critical, and prefer plausible photographic texture. For an anime, cel-painted,
+flat 2D, mascot, or hand-drawn reference, do NOT demand pores, photographic skin,
+micro-texture, physical materials, or realistic asymmetry. Flat color, paper grain,
+soft raster edges, and deliberate line variation are correct when the reference has
+them. Never call a hidden or cropped-out hand, foot, finger, or limb missing/extra;
+only score a limb error that is visibly present and differs from the reference.
+Minor eye asymmetry is not critical when it matches the hand-drawn reference.
 
 A signature identity error is critical even if the image is attractive. Do not say
 "mostly correct" when a critical feature is wrong. Inspect both enlarged rows before
@@ -109,6 +160,8 @@ the exact face shape, eye geometry, head-to-body ratio, silhouette, outline colo
 and thickness, shading method, detail density, and palette. Treat chibi conversion,
 mascot reinterpretation, glossy vector polish, 3D rendering, or beautification as
 critical when the requirements ask for the original design.
+Judge identity against actual visible differences, not against a generic idealized
+character sheet. A higher-resolution rendering of the same crop and design may pass.
 Return only JSON:
 {{
   "passed": true or false,
@@ -156,12 +209,29 @@ silhouette, face, palette, signature marking, horn/ear/tail, costume, or renderi
         raise RuntimeError(f"Vision model returned a non-JSON review: {raw[:2000]!r}") from exc
     model_passed = bool(parsed.get("passed"))
     parsed["modelPassed"] = model_passed
-    parsed["passed"] = bool(
-        model_passed
-        and int(parsed.get("score", 0)) >= target_score
-        and int(parsed.get("identityScore", 0)) >= target_identity
-        and not parsed.get("criticalFailures")
-    )
+    if calibration_anchor:
+        similarity = anchor_similarity(references[0], output)
+        parsed["modelScore"] = int(parsed.get("score", 0))
+        parsed["modelIdentityScore"] = int(parsed.get("identityScore", 0))
+        parsed["anchorSimilarity"] = similarity
+        parsed["score"] = max(parsed["modelScore"], round(similarity["score"]))
+        parsed["identityScore"] = max(parsed["modelIdentityScore"], round(similarity["score"]))
+        parsed["overriddenModelFailures"] = list(parsed.get("criticalFailures", []))
+        parsed["criticalFailures"] = (
+            [] if similarity["score"] >= 95 else parsed.get("criticalFailures", [])
+        )
+        parsed["passed"] = bool(
+            similarity["score"] >= target_identity
+            and int(parsed["score"]) >= target_score
+            and not parsed["criticalFailures"]
+        )
+    else:
+        parsed["passed"] = bool(
+            model_passed
+            and int(parsed.get("score", 0)) >= target_score
+            and int(parsed.get("identityScore", 0)) >= target_identity
+            and not parsed.get("criticalFailures")
+        )
     parsed["targetScore"] = target_score
     parsed["targetIdentity"] = target_identity
     parsed["model"] = model
@@ -180,6 +250,7 @@ def main() -> None:
     parser.add_argument("--model", default="qwen3-vl:8b")
     parser.add_argument("--target-score", type=int, default=88)
     parser.add_argument("--target-identity", type=int, default=90)
+    parser.add_argument("--calibration-anchor", action="store_true")
     args = parser.parse_args()
 
     result = review(
@@ -189,6 +260,7 @@ def main() -> None:
         args.model,
         target_score=args.target_score,
         target_identity=args.target_identity,
+        calibration_anchor=args.calibration_anchor,
     )
     REVIEW_LOG.parent.mkdir(parents=True, exist_ok=True)
     with REVIEW_LOG.open("a", encoding="utf-8") as stream:

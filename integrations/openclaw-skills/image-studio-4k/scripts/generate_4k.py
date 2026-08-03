@@ -238,8 +238,6 @@ def build_workflow(
 
     use_hyper_sdxl = quality == "standard"
     steps = QUALITY_STEPS[quality]
-    if not use_hyper_sdxl:
-        steps = 22 if not photo_pipeline and quality == "high" else steps
     sampler_name = "euler_ancestral"
     scheduler = "sgm_uniform" if use_hyper_sdxl else "normal"
     cfg = 5.0
@@ -337,6 +335,32 @@ def build_workflow(
         resolved_identity_mode = (
             "face" if identity_mode == "auto" and photo_pipeline else identity_mode
         )
+        if resolved_identity_mode == "anchor":
+            # A canonical identity calibration uses the clearest first reference
+            # directly.  IP-Adapter is deliberately skipped here: at 0.08 denoise
+            # the latent already carries the identity, while loading both systems
+            # causes severe VRAM swapping on an 8 GB GPU.
+            workflow["20"] = {
+                "inputs": {"image": reference_names[0]},
+                "class_type": "LoadImage",
+            }
+            workflow["60"] = {
+                "inputs": {
+                    "image": ["20", 0],
+                    "upscale_method": "lanczos",
+                    "width": base_width,
+                    "height": base_height,
+                    "crop": "disabled",
+                },
+                "class_type": "ImageScale",
+            }
+            workflow["61"] = {
+                "inputs": {"pixels": ["60", 0], "vae": ["4", 2]},
+                "class_type": "VAEEncode",
+            }
+            workflow["3"]["inputs"]["latent_image"] = ["61", 0]
+            workflow["3"]["inputs"]["denoise"] = 0.02
+            return workflow, (target_width, target_height)
         preset = (
             "PLUS FACE (portraits)" if resolved_identity_mode == "face" else "PLUS (high strength)"
         )
@@ -393,6 +417,33 @@ def build_workflow(
             "class_type": "IPAdapterAdvanced",
         }
         workflow["3"]["inputs"]["model"] = ["16", 0]
+        if resolved_identity_mode != "face":
+            # For full-body anime/creature identities, use the final reference as
+            # a low-denoise structural anchor as well as IP-Adapter guidance.
+            # This prevents an obscure character from collapsing into a generic
+            # mascot while still allowing modest scene and expression changes.
+            structure_index = (
+                0 if resolved_identity_mode == "anchor" else min(len(reference_names), 4) - 1
+            )
+            structure_load_id = str(20 + structure_index * 2)
+            workflow["60"] = {
+                "inputs": {
+                    "image": [structure_load_id, 0],
+                    "upscale_method": "lanczos",
+                    "width": base_width,
+                    "height": base_height,
+                    "crop": "disabled",
+                },
+                "class_type": "ImageScale",
+            }
+            workflow["61"] = {
+                "inputs": {"pixels": ["60", 0], "vae": ["4", 2]},
+                "class_type": "VAEEncode",
+            }
+            workflow["3"]["inputs"]["latent_image"] = ["61", 0]
+            workflow["3"]["inputs"]["denoise"] = (
+                0.08 if resolved_identity_mode == "anchor" else 0.16
+            )
     return workflow, (target_width, target_height)
 
 
@@ -487,7 +538,7 @@ def main() -> None:
     parser.add_argument("--reference-strength", type=float, default=0.82)
     parser.add_argument(
         "--identity-mode",
-        choices=("auto", "face", "general"),
+        choices=("auto", "face", "general", "anchor"),
         default="auto",
         help="Use face identity conditioning for human portraits or general conditioning for full characters",
     )

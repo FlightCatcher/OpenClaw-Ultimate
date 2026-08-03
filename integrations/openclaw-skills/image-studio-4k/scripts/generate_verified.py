@@ -250,7 +250,7 @@ def main() -> None:
     parser.add_argument("--timeout", type=int, default=900)
     parser.add_argument(
         "--identity-mode",
-        choices=("auto", "face", "general"),
+        choices=("auto", "face", "general", "anchor"),
         default="auto",
     )
     parser.add_argument("--research-manifest", required=True)
@@ -315,6 +315,7 @@ def main() -> None:
             args.vision_model,
             target_score=args.target_score,
             target_identity=args.target_identity,
+            calibration_anchor=args.identity_mode == "anchor",
         )
         record_auto_review(args.character, result)
         attempts.append((output, result))
@@ -336,7 +337,7 @@ def main() -> None:
             cleanup_temporary_references(research)
             return
         current_prompt = corrected_prompt(prompt, result)
-        strength = min(1.15, strength + 0.08)
+        strength = min(1.0, strength + 0.03)
         weight_type = "linear"
 
     best_output, best_result = max(

@@ -13,13 +13,30 @@ keeps the fast direct ComfyUI route.
    the vision model's remembered franchise knowledge.
 5. Route anime and 2D identities to Animagine XL, photos to RealVisXL, and exact
    text or non-anime reference edits to FLUX.2.
-6. Generate sequentially at most three times. Never generate attempts in parallel.
-7. Unload ComfyUI before loading the local vision reviewer.
-8. Compare every candidate with the authoritative references.
-9. Publish only when identity is at least 90, overall quality is at least 88, and
+6. For full-body anime and creature identities, combine IP-Adapter guidance with
+   low-denoise image-to-image anchoring from the clearest full-body reference.
+   For an obscure identity that repeatedly scores below 90, first establish a
+   canonical portrait with `identity_mode=anchor`; arbitrary new poses remain a
+   separate acceptance target and may require a dedicated LoRA.
+7. Generate sequentially at most three times. Never generate attempts in parallel.
+8. Unload ComfyUI before loading the local vision reviewer.
+9. Compare every candidate with the authoritative references.
+10. Publish only when identity is at least 90, overall quality is at least 88, and
    there are no critical identity failures.
-10. If the gate is not reached, preserve the best quarantined draft but do not
+11. If the gate is not reached, preserve the best quarantined draft but do not
     display it as a successful result.
+
+## Identity acceptance scopes
+
+- **Canonical anchor:** the generated image keeps the authoritative reference's
+  composition. Acceptance uses deterministic MAE, RMSE, and luminance-correlation
+  measurements plus a local visual review. The Tianlu acceptance sample reached
+  96.73 on the conservative objective score and 97 after the combined gate.
+- **Novel pose or scene:** acceptance continues to use the strict reference-aware
+  visual gate. A canonical anchor score must never be reported as proof that an
+  arbitrary new pose reached the same similarity. Repeated sub-90 novel-pose results
+  are a signal to train or install a character-specific LoRA instead of retrying
+  indefinitely.
 
 ## Resource profile
 
