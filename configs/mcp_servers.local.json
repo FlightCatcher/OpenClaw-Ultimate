@@ -3,11 +3,7 @@
     {
       "name": "vela-local",
       "command": [
-        "uv",
-        "--directory",
-        "{project_root}",
-        "run",
-        "python",
+        "{project_root}\\.venv\\Scripts\\python.exe",
         "scripts/vela_mcp_server.py"
       ],
       "cwd": "{project_root}",
