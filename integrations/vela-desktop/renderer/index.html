@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
     <title>VELA</title>
-        <link rel="stylesheet" href="/styles.css?v=4.11.1" />
-        <link rel="stylesheet" href="/vela.css?v=4.11.1" />
+        <link rel="stylesheet" href="/styles.css?v=4.12.0" />
+        <link rel="stylesheet" href="/vela.css?v=4.12.0" />
   </head>
   <body>
     <div id="app" class="app-shell">
@@ -17,7 +17,7 @@
           </span>
           <span>VELA</span>
           <small>LOCAL AGENT</small>
-          <span class="titlebar__release">1.5</span>
+            <span class="titlebar__release">1.6</span>
         </div>
       </header>
 
@@ -92,7 +92,7 @@
             <span data-i18n="localAgent">本地智能体</span>
           </div>
           <div class="chat-header__right">
-            <span class="health-badge" id="health-badge" title="本地服务状态">VELA 1.5 · 检查中</span>
+            <span class="health-badge" id="health-badge" title="本地服务状态">VELA 1.6 · 检查中</span>
             <button class="text-button" id="retry-button" type="button" hidden data-i18n="reconnect">重新连接</button>
             <label class="model-picker">
               <span data-i18n="modelLabel">模型</span>
@@ -163,17 +163,47 @@
               <div class="image-studio__header">
                 <div>
                   <strong data-i18n="imageStudioTitle">图像工作室</strong>
-                  <span data-i18n="imageStudioHint">动漫参考 / FLUX.2 Klein · 稳定单次生成</span>
+                  <span data-i18n="imageStudioHint">按题材选择模型，角色可启用参考锁定</span>
                 </div>
                 <span class="image-studio__badge">4K</span>
+              </div>
+
+              <div class="image-studio__presets" aria-label="适合题材">
+                <span class="image-studio__label" data-i18n="imageSubjects">适合题材</span>
+                <div class="image-studio__preset-list">
+                  <button class="subject-chip" type="button" data-image-preset="二次元角色，完整人物立绘，干净线稿，统一角色设计，细致背景">
+                    <span>二次元角色</span><small>Anime</small>
+                  </button>
+                  <button class="subject-chip" type="button" data-image-preset="有兽焉角色，严格参考角色身份、毛色、眼睛、耳朵、角和尾巴，单角色立绘">
+                    <span>角色还原</span><small>Reference</small>
+                  </button>
+                  <button class="subject-chip" type="button" data-image-preset="真实人像摄影，自然光，真实皮肤纹理，专业摄影构图">
+                    <span>真实人像</span><small>Portrait</small>
+                  </button>
+                  <button class="subject-chip" type="button" data-image-preset="电影感自然风景，真实光线，丰富空间层次，超清细节">
+                    <span>风景摄影</span><small>Landscape</small>
+                  </button>
+                  <button class="subject-chip" type="button" data-image-preset="极简产品摄影，柔和棚拍光，干净背景，高端商业质感">
+                    <span>产品图</span><small>Product</small>
+                  </button>
+                </div>
               </div>
 
               <div class="image-studio__group">
                 <span class="image-studio__label" data-i18n="imageEngine">引擎</span>
                 <div class="image-studio__choices">
-                  <button class="studio-choice studio-choice--text" type="button" data-image-engine="anime" data-i18n="engineAnime">动漫参考</button>
-                  <button class="studio-choice studio-choice--text" type="button" data-image-engine="ssd1b" data-i18n="engineFast">快速 SDXL</button>
-                  <button class="studio-choice studio-choice--text" type="button" data-image-engine="flux2" data-i18n="engineFlux">FLUX.2</button>
+                  <button class="studio-choice studio-choice--model" type="button" data-image-engine="anime">
+                    <span data-i18n="engineAnime">动漫角色</span><small>Animagine XL · 二次元</small>
+                  </button>
+                  <button class="studio-choice studio-choice--model" type="button" data-image-engine="ssd1b">
+                    <span data-i18n="engineFast">极速 SDXL</span><small>快速草图 · 概念</small>
+                  </button>
+                  <button class="studio-choice studio-choice--model" type="button" data-image-engine="flux2">
+                    <span data-i18n="engineFlux">FLUX.2 参考</span><small>角色一致性 · 复杂构图</small>
+                  </button>
+                  <button class="studio-choice studio-choice--model" type="button" data-image-engine="realistic">
+                    <span data-i18n="engineRealistic">写实摄影</span><small>Juggernaut XL · 人像</small>
+                  </button>
                 </div>
               </div>
 
@@ -295,6 +325,6 @@
       />
       <div class="toast-region" id="toast-region" aria-live="polite"></div>
     </div>
-    <script type="module" src="/app.js?v=4.11.1"></script>
+    <script type="module" src="/app.js?v=4.12.0"></script>
   </body>
 </html>

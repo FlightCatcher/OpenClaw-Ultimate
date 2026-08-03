@@ -11,8 +11,8 @@ const translations = {
     attach: "文件",
     connected: "已连接",
     healthChecking: "本地服务检查中",
-    healthReady: "VELA 1.5 · 就绪",
-    healthDegraded: "VELA 1.5 · 部分服务离线",
+    healthReady: "VELA 1.6 · 就绪",
+    healthDegraded: "VELA 1.6 · 部分服务离线",
     healthMemory: "内存压力较高",
     connecting: "正在连接",
     disconnected: "连接中断",
@@ -25,11 +25,13 @@ const translations = {
     imageModeActive: "生图模式已开启",
     imageAspect: "画幅",
     imageQuality: "质量",
-    imageStudioHint: "动漫参考 / FLUX.2 Klein · 稳定单次生成",
+    imageStudioHint: "按题材选择模型，角色可启用参考锁定",
+    imageSubjects: "适合题材",
     imageEngine: "引擎",
-    engineAnime: "动漫参考",
-    engineFast: "快速 SDXL",
-    engineFlux: "FLUX.2",
+    engineAnime: "动漫角色",
+    engineFast: "极速 SDXL",
+    engineFlux: "FLUX.2 参考",
+    engineRealistic: "写实摄影",
     imageStudioTitle: "图像工作室",
     imageReference: "角色参考",
     imageStyle: "质感",
@@ -136,8 +138,8 @@ const translations = {
     attach: "Attach",
     connected: "Connected",
     healthChecking: "Checking local services",
-    healthReady: "VELA 1.5 · Ready",
-    healthDegraded: "VELA 1.5 · Degraded",
+    healthReady: "VELA 1.6 · Ready",
+    healthDegraded: "VELA 1.6 · Degraded",
     healthMemory: "High memory pressure",
     connecting: "Connecting",
     disconnected: "Disconnected",
@@ -150,11 +152,13 @@ const translations = {
     imageModeActive: "Image mode enabled",
     imageAspect: "Canvas",
     imageQuality: "Quality",
-    imageStudioHint: "Anime reference / FLUX.2 Klein · Stable single generation",
+    imageStudioHint: "Choose an engine by subject; lock identity with a reference",
+    imageSubjects: "Best for",
     imageEngine: "Engine",
-    engineAnime: "Anime reference",
+    engineAnime: "Anime character",
     engineFast: "Fast SDXL",
-    engineFlux: "FLUX.2",
+    engineFlux: "FLUX.2 reference",
+    engineRealistic: "Realistic photo",
     imageStudioTitle: "Image Studio",
     imageReference: "Character reference",
     imageStyle: "Texture",
@@ -407,7 +411,7 @@ function loadImageSettings() {
       aspect: ["square", "landscape", "portrait", "classic", "vertical", "photo"].includes(parsed.aspect)
         ? parsed.aspect
         : defaultImageSettings.aspect,
-      engine: ["anime", "ssd1b", "flux2"].includes(parsed.engine) ? parsed.engine : defaultImageSettings.engine,
+      engine: ["anime", "ssd1b", "flux2", "realistic"].includes(parsed.engine) ? parsed.engine : defaultImageSettings.engine,
       quality: ["standard", "high", "ultra"].includes(parsed.quality)
         ? parsed.quality
         : defaultImageSettings.quality,
@@ -1932,6 +1936,13 @@ els.imageModeButton.addEventListener("click", () => {
 els.imageStudio.addEventListener("click", (event) => {
   const button = event.target.closest("button");
   if (!button) return;
+  if (button.dataset.imagePreset) {
+    els.composerInput.value = button.dataset.imagePreset;
+    autoResizeComposer();
+    updateSendButton();
+    els.composerInput.focus();
+    return;
+  }
   if (button.dataset.imageAspect) state.imageSettings.aspect = button.dataset.imageAspect;
   if (button.dataset.imageEngine) state.imageSettings.engine = button.dataset.imageEngine;
   if (button.dataset.imageStyle) state.imageSettings.style = button.dataset.imageStyle;

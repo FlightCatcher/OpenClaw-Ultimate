@@ -2360,3 +2360,919 @@ body,
     animation: none !important;
   }
 }
+
+/* VELA 2.0 — restrained liquid glass system. Keep this block last so the
+   desktop renderer has one intentional visual language instead of competing
+   legacy theme overrides. */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark !important;
+  --bg: #0a0a0b !important;
+  --surface: rgba(25, 25, 27, 0.68) !important;
+  --surface-2: rgba(255, 255, 255, 0.075) !important;
+  --surface-3: rgba(255, 255, 255, 0.11) !important;
+  --text: #f4f4f2 !important;
+  --muted: #92928e !important;
+  --border: rgba(255, 255, 255, 0.12) !important;
+  --border-strong: rgba(255, 255, 255, 0.26) !important;
+  --sidebar: rgba(14, 14, 15, 0.78) !important;
+  --sidebar-text: #f4f4f2 !important;
+  --sidebar-muted: #7f7f7a !important;
+  --sidebar-hover: rgba(255, 255, 255, 0.07) !important;
+  --accent: #f1f1ee !important;
+  --accent-text: #111112 !important;
+  --shadow: 0 24px 80px rgba(0, 0, 0, 0.44) !important;
+  --vela-glass: rgba(24, 24, 26, 0.64);
+  --vela-highlight: rgba(255, 255, 255, 0.09);
+  --vela-control: rgba(255, 255, 255, 0.065);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light !important;
+  --bg: #f1f1ee !important;
+  --surface: rgba(255, 255, 253, 0.68) !important;
+  --surface-2: rgba(0, 0, 0, 0.055) !important;
+  --surface-3: rgba(255, 255, 255, 0.84) !important;
+  --text: #151516 !important;
+  --muted: #777773 !important;
+  --border: rgba(0, 0, 0, 0.11) !important;
+  --border-strong: rgba(0, 0, 0, 0.24) !important;
+  --sidebar: rgba(249, 249, 246, 0.78) !important;
+  --sidebar-text: #151516 !important;
+  --sidebar-muted: #85857f !important;
+  --sidebar-hover: rgba(0, 0, 0, 0.055) !important;
+  --accent: #151516 !important;
+  --accent-text: #f8f8f5 !important;
+  --shadow: 0 24px 70px rgba(0, 0, 0, 0.12) !important;
+  --vela-glass: rgba(255, 255, 253, 0.64);
+  --vela-highlight: rgba(255, 255, 255, 0.72);
+  --vela-control: rgba(0, 0, 0, 0.045);
+}
+
+html,
+body,
+#app,
+.app-shell {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+}
+
+body {
+  background:
+    radial-gradient(circle at 82% -12%, rgba(255, 255, 255, 0.08), transparent 31%),
+    radial-gradient(circle at 6% 112%, rgba(255, 255, 255, 0.035), transparent 28%),
+    var(--bg) !important;
+}
+
+:root[data-theme="light"] body {
+  background:
+    radial-gradient(circle at 82% -12%, rgba(255, 255, 255, 0.86), transparent 31%),
+    radial-gradient(circle at 6% 112%, rgba(255, 255, 255, 0.54), transparent 28%),
+    var(--bg) !important;
+}
+
+* {
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  scrollbar-width: thin;
+}
+
+:root[data-theme="light"] * {
+  scrollbar-color: rgba(0, 0, 0, 0.18) transparent;
+}
+
+.app-shell {
+  position: relative !important;
+  isolation: isolate;
+  grid-template-rows: 46px minmax(0, 1fr) !important;
+  overflow: hidden;
+}
+
+.app-shell::before {
+  position: fixed;
+  inset: -26%;
+  z-index: -1;
+  pointer-events: none;
+  content: "";
+  background:
+    radial-gradient(ellipse at 28% 28%, rgba(255, 255, 255, 0.09), transparent 25%),
+    radial-gradient(ellipse at 76% 72%, rgba(255, 255, 255, 0.045), transparent 29%);
+  filter: blur(54px);
+  opacity: 0.9;
+  animation: vela-ambient-drift 18s ease-in-out infinite alternate;
+}
+
+:root[data-theme="light"] .app-shell::before {
+  background:
+    radial-gradient(ellipse at 26% 28%, rgba(255, 255, 255, 0.85), transparent 28%),
+    radial-gradient(ellipse at 76% 70%, rgba(255, 255, 255, 0.55), transparent 32%);
+  opacity: 0.7;
+}
+
+.titlebar {
+  height: 46px !important;
+  padding: 0 18px !important;
+  color: var(--text) !important;
+  background: color-mix(in srgb, var(--vela-glass) 92%, transparent) !important;
+  border-bottom: 1px solid var(--border) !important;
+  box-shadow: inset 0 -1px rgba(255, 255, 255, 0.025) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(145%);
+  backdrop-filter: blur(30px) saturate(145%);
+}
+
+.titlebar__brand {
+  gap: 10px !important;
+  color: var(--text) !important;
+  letter-spacing: 0.18em !important;
+  animation: vela-rise 700ms var(--ease-spring) both;
+}
+
+.titlebar__brand small,
+.titlebar__release {
+  color: var(--muted) !important;
+  background: transparent !important;
+  border-color: var(--border) !important;
+}
+
+.brand-mark {
+  width: 29px !important;
+  height: 29px !important;
+  color: var(--text) !important;
+  background: #111112 !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32), inset 0 1px rgba(255, 255, 255, 0.12) !important;
+  animation: vela-mark-float 6s ease-in-out infinite;
+}
+
+.sidebar {
+  min-height: 0 !important;
+  color: var(--sidebar-text) !important;
+  background: color-mix(in srgb, var(--sidebar) 94%, transparent) !important;
+  border-right: 1px solid var(--border) !important;
+  -webkit-backdrop-filter: blur(34px) saturate(140%);
+  backdrop-filter: blur(34px) saturate(140%);
+  animation: vela-sidebar-in 640ms var(--ease-spring) both;
+}
+
+.sidebar__top {
+  padding: 20px 15px 14px !important;
+}
+
+.new-chat-button {
+  height: 42px !important;
+  color: var(--accent-text) !important;
+  background: var(--accent) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  border-radius: 13px !important;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.16), inset 0 1px rgba(255, 255, 255, 0.52) !important;
+  transition: transform 260ms var(--ease-spring), box-shadow 260ms ease, filter 260ms ease !important;
+}
+
+.new-chat-button:hover {
+  background: var(--accent) !important;
+  transform: translateY(-2px) !important;
+  filter: brightness(1.05);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.24), inset 0 1px rgba(255, 255, 255, 0.7) !important;
+}
+
+.workspace-nav {
+  gap: 5px !important;
+  padding: 0 11px 13px !important;
+}
+
+.workspace-nav__item {
+  min-height: 39px !important;
+  gap: 12px !important;
+  padding: 8px 12px !important;
+  color: var(--sidebar-muted) !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 12px !important;
+  transition: transform 280ms var(--ease-spring), color 220ms ease, background 280ms ease, border-color 280ms ease !important;
+}
+
+.workspace-nav__item:hover,
+.workspace-nav__item.is-active {
+  color: var(--text) !important;
+  background: var(--sidebar-hover) !important;
+  border-color: var(--border) !important;
+  box-shadow: inset 3px 0 var(--text) !important;
+  transform: translateX(2px) !important;
+}
+
+.workspace-nav__icon {
+  width: 21px !important;
+  height: 21px !important;
+  color: var(--muted) !important;
+}
+
+.workspace-nav__item.is-active .workspace-nav__icon {
+  color: var(--text) !important;
+}
+
+.session-list {
+  padding: 0 10px 18px !important;
+}
+
+.session-item {
+  min-height: 47px !important;
+  border-radius: 12px !important;
+  transition: transform 280ms var(--ease-spring), background 240ms ease, border-color 240ms ease !important;
+}
+
+.session-item:hover,
+.session-item.is-active {
+  color: var(--text) !important;
+  background: var(--sidebar-hover) !important;
+  border-color: var(--border) !important;
+  box-shadow: inset 3px 0 var(--text) !important;
+  transform: translateX(2px);
+}
+
+.session-item__delete {
+  opacity: 0;
+  transition: opacity 180ms ease, transform 220ms var(--ease-spring) !important;
+}
+
+.session-item-wrap:hover .session-item__delete,
+.session-item-wrap:focus-within .session-item__delete {
+  opacity: 1;
+}
+
+.sidebar__footer {
+  background: color-mix(in srgb, var(--vela-glass) 92%, transparent) !important;
+  border-top: 1px solid var(--border) !important;
+}
+
+.main {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  grid-template-rows: 66px auto minmax(0, 1fr) auto !important;
+  background: transparent !important;
+}
+
+.chat-header {
+  position: relative !important;
+  z-index: 8 !important;
+  min-width: 0;
+  min-height: 66px !important;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 0 26px !important;
+  color: var(--text) !important;
+  background: color-mix(in srgb, var(--vela-glass) 88%, transparent) !important;
+  border-bottom: 1px solid var(--border) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(145%);
+  backdrop-filter: blur(30px) saturate(145%);
+  animation: vela-rise 700ms 60ms var(--ease-spring) both;
+}
+
+.chat-header__right {
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px !important;
+}
+
+.health-badge,
+.privacy-badge,
+.model-picker {
+  color: var(--muted) !important;
+  background: var(--vela-control) !important;
+  border-color: var(--border) !important;
+  box-shadow: inset 0 1px var(--vela-highlight) !important;
+}
+
+.health-badge::before,
+.health-badge.is-ready::before,
+.health-badge.is-warning::before {
+  background: var(--text) !important;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08) !important;
+}
+
+.health-badge.is-ready,
+.health-badge.is-warning,
+.workspace-panel__sync,
+.workspace-panel__sync.is-error,
+.status-pill,
+.status-pill--ready,
+.status-pill--completed,
+.status-pill--online,
+.status-pill--healthy,
+.status-pill--running,
+.status-pill--failed,
+.status-pill--offline {
+  color: var(--muted) !important;
+  background: var(--vela-control) !important;
+  border-color: var(--border) !important;
+}
+
+.model-picker select,
+.model-picker option,
+select,
+option {
+  color: var(--text) !important;
+  background: #1a1a1c !important;
+}
+
+:root[data-theme="light"] .model-picker select,
+:root[data-theme="light"] .model-picker option,
+:root[data-theme="light"] select,
+:root[data-theme="light"] option {
+  color: var(--text) !important;
+  background: #fafaf8 !important;
+}
+
+.command-deck {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  left: auto !important;
+  z-index: 4 !important;
+  width: auto !important;
+  height: 86px !important;
+  min-height: 86px !important;
+  max-height: 86px !important;
+  margin: 10px 24px !important;
+  padding: 11px 15px !important;
+  overflow: hidden !important;
+  color: var(--text) !important;
+  background: color-mix(in srgb, var(--vela-glass) 96%, transparent) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 22px !important;
+  box-shadow: 0 20px 54px rgba(0, 0, 0, 0.18), inset 0 1px var(--vela-highlight) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(150%);
+  backdrop-filter: blur(32px) saturate(150%);
+  transition: height 420ms var(--ease-spring), min-height 420ms var(--ease-spring), max-height 420ms var(--ease-spring), transform 420ms var(--ease-spring), box-shadow 300ms ease !important;
+  animation: vela-rise 720ms 120ms var(--ease-spring) both;
+}
+
+.command-deck::after,
+.composer::after {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  border-radius: inherit;
+  background: linear-gradient(112deg, transparent 22%, rgba(255, 255, 255, 0.11) 46%, transparent 69%);
+  transform: translateX(-130%);
+  animation: vela-glass-sweep 12s ease-in-out infinite;
+}
+
+.command-deck.is-collapsed {
+  height: 48px !important;
+  min-height: 48px !important;
+  max-height: 48px !important;
+}
+
+.command-deck__flow {
+  height: 25px !important;
+  max-height: 25px !important;
+  margin-top: 10px !important;
+}
+
+.deck-node,
+.command-deck__label,
+.deck-status,
+.command-deck__metrics,
+.deck-node.is-active,
+.deck-node.is-complete,
+.deck-node i,
+.deck-node.is-active i,
+.deck-node.is-complete i {
+  color: var(--muted) !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.deck-node.is-active,
+.deck-node.is-complete {
+  color: var(--text) !important;
+}
+
+.deck-signal,
+.deck-node i {
+  background: var(--text) !important;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.07) !important;
+}
+
+.deck-link {
+  background: linear-gradient(90deg, var(--border-strong), var(--border)) !important;
+}
+
+.chat-scroll {
+  grid-row: 3 !important;
+  min-height: 0 !important;
+  overflow: auto !important;
+  overscroll-behavior: contain;
+}
+
+.chat-content {
+  width: min(980px, calc(100% - 52px)) !important;
+  min-height: 100% !important;
+  padding: 30px 0 42px !important;
+}
+
+.empty-state {
+  min-height: calc(100vh - 325px) !important;
+  animation: vela-empty-in 820ms 180ms var(--ease-spring) both;
+}
+
+.empty-mark {
+  width: 62px !important;
+  height: 62px !important;
+  margin-bottom: 20px !important;
+  background: var(--accent) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 22px 46px rgba(0, 0, 0, 0.2), inset 0 1px rgba(255, 255, 255, 0.55) !important;
+  animation: vela-mark-float 6s ease-in-out infinite;
+}
+
+.empty-state h1 {
+  letter-spacing: -0.06em !important;
+}
+
+.quick-action,
+.media-card,
+.message-row .message-body {
+  background: color-mix(in srgb, var(--vela-glass) 92%, transparent) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.08), inset 0 1px var(--vela-highlight) !important;
+  -webkit-backdrop-filter: blur(25px) saturate(140%);
+  backdrop-filter: blur(25px) saturate(140%);
+}
+
+.quick-action {
+  transition: transform 300ms var(--ease-spring), border-color 240ms ease, background 240ms ease, box-shadow 300ms ease !important;
+}
+
+.quick-action:hover {
+  color: var(--text) !important;
+  background: var(--surface-3) !important;
+  border-color: var(--border-strong) !important;
+  box-shadow: 0 20px 42px rgba(0, 0, 0, 0.15), inset 0 1px var(--vela-highlight) !important;
+  transform: translateY(-4px) !important;
+}
+
+.message-row {
+  animation: vela-message-in 520ms var(--ease-spring) both;
+}
+
+.message-row--user .message-body {
+  color: var(--text) !important;
+  background: var(--surface-3) !important;
+  border-color: var(--border-strong) !important;
+}
+
+.message-row:hover .message-body {
+  border-color: var(--border-strong) !important;
+  transform: translateY(-1px);
+}
+
+.composer-area {
+  grid-row: 4 !important;
+  z-index: 10 !important;
+  min-width: 0;
+  padding: 10px 28px 18px !important;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--bg) 94%, transparent) 28%) !important;
+}
+
+.composer {
+  position: relative !important;
+  isolation: isolate;
+  width: min(980px, 100%) !important;
+  max-height: min(56vh, 520px);
+  margin: 0 auto !important;
+  padding: 13px 15px 11px !important;
+  overflow: hidden !important;
+  background: color-mix(in srgb, var(--vela-glass) 97%, transparent) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 24px !important;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.22), inset 0 1px var(--vela-highlight) !important;
+  -webkit-backdrop-filter: blur(34px) saturate(155%);
+  backdrop-filter: blur(34px) saturate(155%);
+  transition: transform 350ms var(--ease-spring), border-color 260ms ease, box-shadow 350ms ease !important;
+  animation: vela-composer-in 720ms 220ms var(--ease-spring) both;
+}
+
+.composer:hover,
+.composer:focus-within {
+  border-color: var(--border-strong) !important;
+  box-shadow: 0 28px 82px rgba(0, 0, 0, 0.3), inset 0 1px var(--vela-highlight) !important;
+  transform: translateY(-2px);
+}
+
+.image-studio {
+  position: relative;
+  z-index: 1;
+  max-height: min(44vh, 410px);
+  margin-bottom: 11px !important;
+  padding: 5px 5px 13px !important;
+  overflow: auto !important;
+  color: var(--text) !important;
+  background: color-mix(in srgb, var(--surface-2) 82%, transparent) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 17px !important;
+  box-shadow: inset 0 1px var(--vela-highlight) !important;
+  animation: vela-panel-open 460ms var(--ease-spring) both;
+}
+
+.image-studio__header,
+.image-studio__row,
+.image-studio__reference,
+.image-studio__text-row {
+  flex-wrap: wrap !important;
+}
+
+.image-studio__header > div {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.image-studio__header strong {
+  color: var(--text) !important;
+  font-size: 13px !important;
+}
+
+.image-studio__header span,
+.image-studio__label,
+.image-studio__reference-hint {
+  color: var(--muted) !important;
+}
+
+.image-studio__presets {
+  display: grid;
+  gap: 7px;
+  margin: 0 0 13px;
+  padding: 0 2px 13px;
+  border-bottom: 1px solid var(--border);
+}
+
+.image-studio__preset-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.subject-chip {
+  display: flex;
+  min-width: 0;
+  min-height: 45px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  padding: 7px 9px;
+  color: var(--text);
+  background: var(--vela-control);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 260ms var(--ease-spring), background 220ms ease, border-color 220ms ease, box-shadow 260ms ease;
+}
+
+.subject-chip span {
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 10px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subject-chip small {
+  color: var(--muted);
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.subject-chip:hover {
+  background: var(--surface-3);
+  border-color: var(--border-strong);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.13);
+  transform: translateY(-2px);
+}
+
+.image-studio__choices {
+  gap: 7px !important;
+}
+
+.studio-choice {
+  color: var(--muted) !important;
+  background: var(--vela-control) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 11px !important;
+  transition: transform 240ms var(--ease-spring), color 200ms ease, background 220ms ease, border-color 220ms ease, box-shadow 240ms ease !important;
+}
+
+.studio-choice:hover {
+  color: var(--text) !important;
+  background: var(--surface-3) !important;
+  border-color: var(--border-strong) !important;
+  transform: translateY(-2px);
+}
+
+.studio-choice.is-active {
+  color: var(--accent-text) !important;
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.16), inset 0 1px rgba(255, 255, 255, 0.5) !important;
+  transform: translateY(-1px);
+}
+
+.studio-choice--model {
+  min-width: 150px !important;
+  min-height: 52px !important;
+  flex: 1 1 150px !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  padding: 8px 10px !important;
+}
+
+.studio-choice--model span {
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.studio-choice--model small {
+  max-width: 100%;
+  overflow: hidden;
+  color: inherit;
+  font-size: 8px;
+  opacity: 0.64;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.image-studio__reference,
+.image-studio__text-row {
+  border-color: var(--border) !important;
+}
+
+#composer-input {
+  position: relative;
+  z-index: 2;
+  min-height: 32px;
+  max-height: 150px !important;
+  padding: 6px 6px 12px !important;
+  color: var(--text) !important;
+}
+
+.composer__bottom {
+  position: relative;
+  z-index: 2;
+  min-height: 34px;
+}
+
+.tool-button {
+  height: 32px !important;
+  color: var(--muted) !important;
+  border-radius: 10px !important;
+  transition: transform 240ms var(--ease-spring), color 200ms ease, background 200ms ease !important;
+}
+
+.tool-button:hover,
+.tool-button.is-active {
+  color: var(--text) !important;
+  background: var(--surface-2) !important;
+  transform: translateY(-1px);
+}
+
+.send-button {
+  color: var(--accent-text) !important;
+  background: var(--accent) !important;
+  border: 1px solid var(--border-strong) !important;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.2), inset 0 1px rgba(255, 255, 255, 0.55) !important;
+  transition: transform 260ms var(--ease-spring), filter 220ms ease, box-shadow 260ms ease !important;
+}
+
+.send-button:hover:not(:disabled) {
+  background: var(--accent) !important;
+  transform: translateY(-2px) scale(1.04) !important;
+  filter: brightness(1.06);
+}
+
+.composer-note {
+  margin: 8px 0 0 !important;
+  color: var(--muted) !important;
+}
+
+.workspace-panel {
+  position: absolute !important;
+  top: 164px !important;
+  right: 24px !important;
+  bottom: 116px !important;
+  left: 24px !important;
+  z-index: 7 !important;
+  color: var(--text) !important;
+  background: color-mix(in srgb, var(--vela-glass) 96%, transparent) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 24px !important;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.25), inset 0 1px var(--vela-highlight) !important;
+  -webkit-backdrop-filter: blur(34px) saturate(150%);
+  backdrop-filter: blur(34px) saturate(150%);
+  animation: vela-panel-open 480ms var(--ease-spring) both;
+}
+
+.workspace-panel__detail,
+.workspace-card,
+.workspace-step,
+.workspace-metric,
+.workspace-component-list > div,
+.workspace-reflection {
+  color: var(--text) !important;
+  background: var(--vela-control) !important;
+  border-color: var(--border) !important;
+}
+
+.workspace-card:hover,
+.workspace-card.is-active {
+  background: var(--surface-3) !important;
+  border-color: var(--border-strong) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.13) !important;
+  transform: translateX(3px);
+}
+
+.workspace-card__signal,
+.workspace-card__icon,
+.workspace-card__signal--ready,
+.workspace-card__signal--running,
+.workspace-card__signal--completed,
+.workspace-card__signal--failed {
+  color: var(--text) !important;
+  background: var(--surface-3) !important;
+  box-shadow: none !important;
+}
+
+.drop-overlay > div,
+.media-dialog {
+  color: var(--text) !important;
+  background: color-mix(in srgb, var(--vela-glass) 96%, transparent) !important;
+  border-color: var(--border-strong) !important;
+  box-shadow: 0 34px 100px rgba(0, 0, 0, 0.36), inset 0 1px var(--vela-highlight) !important;
+  -webkit-backdrop-filter: blur(34px) saturate(150%);
+  backdrop-filter: blur(34px) saturate(150%);
+}
+
+.toast-region {
+  z-index: 100 !important;
+}
+
+.toast {
+  color: var(--text) !important;
+  background: color-mix(in srgb, var(--vela-glass) 96%, transparent) !important;
+  border-color: var(--border-strong) !important;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.26), inset 0 1px var(--vela-highlight) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(145%);
+  backdrop-filter: blur(28px) saturate(145%);
+  animation: vela-toast-in 420ms var(--ease-spring) both;
+}
+
+button,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--text) !important;
+  outline-offset: 3px !important;
+}
+
+@keyframes vela-ambient-drift {
+  from { transform: translate3d(-2%, -1%, 0) scale(1); }
+  to { transform: translate3d(3%, 2%, 0) scale(1.05); }
+}
+
+@keyframes vela-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes vela-sidebar-in {
+  from { opacity: 0; transform: translateX(-18px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes vela-composer-in {
+  from { opacity: 0; transform: translateY(18px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes vela-message-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes vela-panel-open {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); filter: blur(3px); }
+  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+@keyframes vela-empty-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes vela-mark-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-2px) rotate(-1deg); }
+}
+
+@keyframes vela-glass-sweep {
+  0%, 18% { opacity: 0; transform: translateX(-130%); }
+  34% { opacity: 1; }
+  66%, 100% { opacity: 0; transform: translateX(130%); }
+}
+
+@keyframes vela-toast-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 1100px) {
+  .chat-header__right .privacy-badge {
+    display: none;
+  }
+
+  .image-studio__preset-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 840px) {
+  .app-shell {
+    grid-template-columns: 1fr !important;
+  }
+
+  .sidebar {
+    position: fixed !important;
+    inset: 46px auto 0 0;
+    z-index: 40 !important;
+    width: min(300px, 84vw);
+    box-shadow: 28px 0 70px rgba(0, 0, 0, 0.26);
+    transform: translateX(-105%);
+    transition: transform 420ms var(--ease-spring) !important;
+  }
+
+  .sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  .main {
+    grid-column: 1 !important;
+  }
+
+  .mobile-sidebar-button {
+    display: inline-flex !important;
+  }
+
+  .chat-header {
+    padding: 0 16px !important;
+  }
+
+  .chat-header__right .health-badge,
+  .chat-header__right .model-picker {
+    max-width: 150px;
+  }
+
+  .command-deck {
+    margin-right: 14px !important;
+    margin-left: 14px !important;
+  }
+
+  .chat-content {
+    width: min(calc(100% - 28px), 980px) !important;
+  }
+
+  .composer-area {
+    padding-right: 14px !important;
+    padding-left: 14px !important;
+  }
+
+  .workspace-panel {
+    top: 154px !important;
+    right: 14px !important;
+    bottom: 110px !important;
+    left: 14px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
+}

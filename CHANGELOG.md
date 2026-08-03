@@ -1,5 +1,14 @@
 # Changelog
 
+## VELA 1.6.0 — liquid glass UI and image model studio - 2026-08-03
+
+- Rebuilt the desktop layout around a stable grid so the workflow deck, chat stream, composer and workspace panel no longer cover each other.
+- Added neutral black, graphite and ivory liquid-glass surfaces with animated ambient light, spring entrances, message transitions, panel expansion and hover feedback.
+- Added compact subject presets for anime characters, reference-locked characters, realistic portraits, landscapes and product photography.
+- Added image engine choices for Anime/Animagine XL, Fast SDXL, FLUX.2 reference and realistic Juggernaut XL routing.
+- Added a realistic image route that selects the photography checkpoint when the user chooses the realistic engine.
+- Bumped renderer cache keys and desktop package version to 4.12.0 so the installed desktop app cannot silently reuse the previous UI.
+
 ## VELA 1.5 UI refinement - 2026-08-03
 
 - Reworked the desktop shell into a monochrome black, white and graphite glass system.

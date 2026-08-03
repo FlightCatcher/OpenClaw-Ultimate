@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 
 const APP_PORT = 18790;
 const APP_HOST = "127.0.0.1";
-const VELA_RELEASE = "1.5.0";
+const VELA_RELEASE = "1.6.0";
 const COMFY_PORT = 8188;
 const OCU_PORT = 8765;
 const OCU_PROJECT_ROOT = process.env.OCU_PROJECT_ROOT ?? "E:\\Projects\\OpenClaw-Ultimate";
@@ -185,6 +185,7 @@ function routedFluxPrompt(prompt, visualSpec = "") {
 function imageEngine(settings = {}) {
   const requested = String(settings?.engine ?? "anime").toLowerCase();
   if (["ssd1b", "ssd-1b", "fast", "sdxl"].includes(requested)) return "ssd1b";
+  if (["realistic", "photo", "portrait", "juggernaut"].includes(requested)) return "realistic";
   return requested === "flux" || requested === "flux2" ? "flux2" : "anime";
 }
 
@@ -635,7 +636,7 @@ async function generateComfyImage(config, prompt, settings = {}, attachments = [
     if (activeImageJob === imageJob) activeImageJob = null;
     throw new Error(`ComfyUI prompt node ${profile.promptNodeId} is invalid.`);
   }
-  const route = imageRoute(prompt, settings);
+  const route = engine === "realistic" ? "realistic" : imageRoute(prompt, settings);
   node.inputs[promptInputName] = engine === "flux2"
     ? routedFluxPrompt(prompt, referenceContext?.visualSpec ?? "")
     : routedImagePrompt(prompt, route, referenceContext?.visualSpec ?? "");
