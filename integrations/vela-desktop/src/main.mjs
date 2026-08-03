@@ -272,7 +272,10 @@ async function searchReferenceImage(prompt) {
   const queries = [
     `"${cleaned}" official character sheet reference illustration`,
     `${cleaned} 角色设定图 官方 立绘 正面`,
-    `${cleaned} character design sheet full body reference`
+    `${cleaned} character design sheet full body reference`,
+    `${cleaned} site:baike.baidu.com OR site:baike.baidu.com 角色图`,
+    `${cleaned} site:pixiv.net OR site:weibo.com 角色设定`,
+    `${cleaned} site:bilibili.com OR site:lofter.com 官方参考图`
   ];
   const batches = await Promise.allSettled(queries.map(searchBingImageCandidates));
   const candidates = [...new Set(batches.flatMap((batch) => batch.status === "fulfilled" ? batch.value : []))];
