@@ -253,3 +253,8 @@ node_modules/
 !integrations/vela-desktop/build/
 integrations/vela-desktop/build/*.png
 !integrations/vela-desktop/build/vela-icon.ico
+
+# Electron build and inspection artifacts
+VELA-Desktop.exe
+integrations/vela-desktop/dist*/
+integrations/vela-desktop/tmp-*/

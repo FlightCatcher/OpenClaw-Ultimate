@@ -1,7 +1,7 @@
 import { marked } from "/deps/marked.js";
 import createDOMPurify from "/deps/purify.js";
 import { latestMessageByRole } from "./history.js";
-import { looksLikeImageGenerationRequest } from "./intents.js";
+import { looksLikeImageGenerationRequest, needsVerifiedIdentityPipeline } from "./intents.js";
 import { resolveMediaUrl } from "./media.js";
 
 const DOMPurify = createDOMPurify(window);
@@ -1468,11 +1468,13 @@ function imageStudioMessage(prompt) {
     `TEXT_MODE=${state.imageSettings.textMode}`,
     "RESEARCH_MODE=required",
     "MODEL_ROUTING=auto",
-    "MAX_GENERATIONS=1",
+    "MAX_GENERATIONS=3",
+    "IDENTITY_TARGET=90",
+    "QUALITY_TARGET=88",
     "DESIGN_PHASES=SEMANTIC_PARSE,DETAIL_COMPLETION,COMPOSITION,STYLE_LIGHT_COLOR,CONSISTENCY_CHECK",
-    "PIPELINE_ORDER=DESIGN_PLAN,MODEL_ROUTER,ONE_GENERATION,IMMEDIATE_PUBLISH",
-    "FORBIDDEN=retry,namesake_substitution",
-    "PUBLISH_POLICY=ONE_PASS_IMMEDIATE",
+    "PIPELINE_ORDER=RESEARCH,REFERENCE_QA,DESIGN_PLAN,MODEL_ROUTER,BOUNDED_GENERATE,IDENTITY_REVIEW,PUBLISH",
+    "FORBIDDEN=parallel_generation,infinite_retry,namesake_substitution,publish_below_threshold",
+    "PUBLISH_POLICY=IDENTITY_90_OR_EXPLICIT_FAILURE",
     "RESOLUTION=4K",
     "PROMPT_BEGIN",
     safePrompt,
@@ -1488,6 +1490,12 @@ async function sendMessage() {
   const isImageRequest = state.imageMode || looksLikeImageGenerationRequest(rawText);
   const wireText = isImageRequest ? imageStudioMessage(rawText) : rawText;
   const attachments = attachmentPayloads();
+  const useVerifiedIdentityPipeline = isImageRequest && (
+    needsVerifiedIdentityPipeline(rawText)
+    || attachments.some((item) => item.type === "image")
+    || state.imageSettings.reference === "strict"
+  );
+  const useDirectImagePipeline = isImageRequest && !useVerifiedIdentityPipeline;
   const runId = crypto.randomUUID();
   const sentAt = Date.now();
 
@@ -1508,7 +1516,7 @@ async function sendMessage() {
     detail: isImageRequest ? t("progressEstimate") : ""
   };
   if (isImageRequest) startImageStatusPolling();
-  if (isImageRequest) {
+  if (useDirectImagePipeline) {
     saveLocalImageMessage({
       role: "user",
       content: rawText || t("noText"),
@@ -1531,7 +1539,7 @@ async function sendMessage() {
   renderAll(true);
 
   try {
-    if (isImageRequest) {
+    if (useDirectImagePipeline) {
       const response = await fetch("/api/generate-image", {
         method: "POST",
         headers: {

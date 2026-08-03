@@ -11,6 +11,10 @@ MCP、安全确认和审计记录组合为一个真正可执行的本地工作�
 本仓库原名 **OpenClaw-Ultimate（OCU）**。`ocu` 命令、Python 包名、OpenClaw
 插件 ID 和已有 SQLite 数据库继续兼容；v1.0 的产品名称和 UI 为 **VELA**。
 
+命名角色与严格参考生图采用可审计的
+[VELA 角色还原流程](docs/IMAGE_IDENTITY_PIPELINE.md)：先研究和校验参考图，
+再按题材路由模型，顺序生成并通过本地 90 分身份门槛后才向 UI 发布。
+
 ## v1.0 能做什么
 
 - 将自然语言目标转换为结构化 DAG，并按依赖执行。
