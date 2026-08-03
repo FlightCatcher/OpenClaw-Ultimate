@@ -121,6 +121,7 @@ function readComfyProfile(config) {
     workflowPath: String(image.workflowPath),
     referenceWorkflowPath: String(image.referenceWorkflowPath ?? "C:\\AI-Apps\\OpenClaw-Workflows\\animagine-reference-api.json"),
     fluxWorkflowPath: String(image.fluxWorkflowPath ?? path.join(appRoot, "workflows", "flux2-klein-text-api.json")),
+    fluxReferenceWorkflowPath: String(image.fluxReferenceWorkflowPath ?? path.join(appRoot, "workflows", "flux2-klein-reference-api.json")),
     promptNodeId: String(image.promptNodeId),
     promptInputName: String(image.promptInputName),
     outputNodeId: String(image.outputNodeId),
@@ -143,17 +144,41 @@ function imageRoute(prompt, settings = {}) {
   return "anime";
 }
 
-function routedImagePrompt(prompt, route) {
+function knownCharacterFacts(prompt) {
+  const value = String(prompt ?? "");
+  if (/(辟邪|bixie|pixiu)/i.test(value)) {
+    return "Identity lock: Pixiu/Pixie from 有兽焉 (Fabulous Beasts), one small fluffy white canine-like mythical beast, red facial and body markings, red tail, red plum-blossom hindquarter markings, chartreuse-to-lime gradient eyes, two bronze back-to-back horns between the ears, notched left ear, deadpan expression. Do not turn it into a generic lucky mascot, lion, fox, cat, or dragon.";
+  }
+  if (/(天禄|tianlu)/i.test(value)) {
+    return "Identity lock: Tianlu from 有兽焉 (Fabulous Beasts); preserve the exact reference silhouette, coat pattern, facial markings, eye colors, horns, ears, tail, and body proportions. Do not substitute another character.";
+  }
+  return "";
+}
+
+function referenceLockPrompt(prompt, visualSpec = "") {
+  return [
+    "REFERENCE-LOCKED CHARACTER EDIT.",
+    "Reference image is authoritative for identity. Preserve the exact silhouette, facial geometry, proportions, palette, line weight, rendering style, and signature markings.",
+    "Change only the requested pose, expression, action, camera, clothing, or background.",
+    "Exactly one main subject. No companion, duplicate, clone, character sheet, collage, or generic redesign.",
+    knownCharacterFacts(prompt),
+    visualSpec ? `Vision inspection of the reference: ${visualSpec}` : "",
+    String(prompt ?? "").trim(),
+    "Do not beautify, chibify, modernize, add decorative detail, or replace the character with a namesake."
+  ].filter(Boolean).join(" ");
+}
+
+function routedImagePrompt(prompt, route, visualSpec = "") {
   const cleaned = String(prompt ?? "").trim();
   if (route === "realistic") {
     return `${cleaned}, photorealistic, natural lighting, realistic material and skin or fur detail, professional photography, sharp subject, no text, no watermark`;
   }
-  return `masterpiece, best quality, anime illustration, clean lineart, expressive character design, cel shading, vivid but coherent colors, ${cleaned}, no text, no watermark`;
+  return `${referenceLockPrompt(cleaned, visualSpec)}, masterpiece, best quality, anime illustration, clean lineart, expressive character design, cel shading, vivid but coherent colors, no text, no watermark`;
 }
 
-function routedFluxPrompt(prompt) {
+function routedFluxPrompt(prompt, visualSpec = "") {
   const cleaned = String(prompt ?? "").trim();
-  return `${cleaned}. High-quality concept illustration, coherent composition, clear subject silhouette, expressive pose, refined materials, controlled lighting, no text, no watermark.`;
+  return `${referenceLockPrompt(cleaned, visualSpec)} High-quality concept illustration, coherent composition, clear subject silhouette, expressive pose, refined materials, controlled lighting, no text, no watermark.`;
 }
 
 function imageEngine(settings = {}) {
@@ -215,8 +240,7 @@ function isImageUrl(value) {
   }
 }
 
-async function searchReferenceImage(prompt) {
-  const query = `"${String(prompt).trim().slice(0, 180)}" official character sheet reference illustration`;
+async function searchBingImageCandidates(query) {
   const searchUrl = `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&form=HDRSC2`;
   const response = await fetch(searchUrl, {
     headers: {
@@ -240,12 +264,65 @@ async function searchReferenceImage(prompt) {
     }
     if (candidates.length >= 8) break;
   }
+  return candidates;
+}
+
+async function searchReferenceImage(prompt) {
+  const cleaned = String(prompt).trim().slice(0, 180);
+  const queries = [
+    `"${cleaned}" official character sheet reference illustration`,
+    `${cleaned} 角色设定图 官方 立绘 正面`,
+    `${cleaned} character design sheet full body reference`
+  ];
+  const batches = await Promise.allSettled(queries.map(searchBingImageCandidates));
+  const candidates = [...new Set(batches.flatMap((batch) => batch.status === "fulfilled" ? batch.value : []))];
   if (!candidates.length) throw new Error("No usable reference image was found.");
   const terms = String(prompt).toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((term) => term.length > 1);
   return candidates.sort((left, right) => {
     const score = (value) => terms.reduce((total, term) => total + (value.toLowerCase().includes(term) ? 3 : 0), 0);
     return score(right) - score(left);
   });
+}
+
+async function availableOllamaVisionModel() {
+  try {
+    const response = await fetch("http://127.0.0.1:11434/api/tags", { signal: AbortSignal.timeout(2500) });
+    if (!response.ok) return "";
+    const models = await response.json();
+    const names = Array.isArray(models?.models) ? models.models.map((item) => String(item?.name ?? "")) : [];
+    return names.find((name) => /^qwen2\.5vl:3b$/i.test(name))
+      ?? names.find((name) => /^qwen3-vl:8b$/i.test(name))
+      ?? names.find((name) => /^moondream(?::|$)/i.test(name))
+      ?? "";
+  } catch {
+    return "";
+  }
+}
+
+async function inspectReferenceImage(localPath, prompt) {
+  const model = await availableOllamaVisionModel();
+  if (!model || !localPath || !fs.existsSync(localPath)) return "";
+  const stat = fs.statSync(localPath);
+  if (!stat.isFile() || stat.size > 12 * 1024 * 1024) return "";
+  const image = fs.readFileSync(localPath).toString("base64");
+  const response = await fetch("http://127.0.0.1:11434/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    signal: AbortSignal.timeout(60000),
+    body: JSON.stringify({
+      model,
+      keep_alive: 0,
+      stream: false,
+      messages: [{
+        role: "user",
+        content: `Inspect this character reference for an image generator. Identify only stable visual identity traits: species, silhouette, face shape, eye colors and gradient, horns/ears, fur or hair colors, markings, tail, costume, line style, and distinctive asymmetry. Do not invent a name. Keep it under 180 words. The requested subject is: ${String(prompt).slice(0, 180)}`,
+        images: [image]
+      }]
+    })
+  });
+  if (!response.ok) throw new Error(`Vision inspection failed (${response.status}).`);
+  const payload = await response.json();
+  return String(payload?.message?.content ?? "").replace(/\s+/g, " ").trim().slice(0, 1200);
 }
 
 function memoryIndexPath() {
@@ -272,6 +349,21 @@ function findCharacterMemory(prompt) {
     .filter((item) => item?.prompt && item?.path && fs.existsSync(item.path))
     .sort((left, right) => Number(right.updatedAt ?? 0) - Number(left.updatedAt ?? 0))
     .find((item) => normalized.includes(String(item.prompt).slice(0, 100)) || String(item.prompt).includes(normalized.slice(0, 100))) ?? null;
+}
+
+function findKnownReference(prompt) {
+  const value = String(prompt ?? "");
+  const known = [
+    {
+      pattern: /(辟邪|bixie|pixiu)/i,
+      path: path.join(COMFY_INPUT_ROOT, "bixie_ref.png")
+    },
+    {
+      pattern: /(天禄|tianlu)/i,
+      path: path.join(COMFY_INPUT_ROOT, "tianlu_ref.png")
+    }
+  ];
+  return known.find((item) => item.pattern.test(value) && fs.existsSync(item.path)) ?? null;
 }
 
 function saveCharacterMemory(prompt, sourcePath) {
@@ -328,8 +420,8 @@ function removeUploadedReference(uploadedName) {
   if (fs.existsSync(candidate)) fs.rmSync(candidate, { force: true });
 }
 
-async function createReferenceContext(profile, prompt, attachments = []) {
-  if (!fs.existsSync(profile.referenceWorkflowPath)) throw new Error("Reference workflow is not installed.");
+async function createReferenceContext(profile, prompt, attachments = [], requiredWorkflowPath = profile.referenceWorkflowPath) {
+  if (!fs.existsSync(requiredWorkflowPath)) throw new Error("Reference workflow is not installed.");
   const tempDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "vela-reference-"));
   let uploadedName = "";
   try {
@@ -342,6 +434,12 @@ async function createReferenceContext(profile, prompt, attachments = []) {
       localPath = path.join(tempDirectory, `user-reference${extension}`);
       fs.writeFileSync(localPath, Buffer.from(String(attachment.content), "base64"));
       source = "user";
+    }
+    const known = localPath ? null : findKnownReference(prompt);
+    if (known) {
+      localPath = path.join(tempDirectory, `known-reference${path.extname(known.path) || ".png"}`);
+      fs.copyFileSync(known.path, localPath);
+      source = "known";
     }
     const memory = localPath ? null : findCharacterMemory(prompt);
     if (memory) {
@@ -361,7 +459,13 @@ async function createReferenceContext(profile, prompt, attachments = []) {
     }
     if (!localPath) throw lastError ?? new Error("No downloadable reference image was found.");
     uploadedName = await uploadReferenceImage(profile.baseUrl, localPath);
-    return { uploadedName, tempDirectory, localPath, source };
+    let visualSpec = "";
+    try {
+      visualSpec = await inspectReferenceImage(localPath, prompt);
+    } catch (error) {
+      console.warn(`[VELA] Vision inspection unavailable: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    return { uploadedName, tempDirectory, localPath, source, visualSpec };
   } catch (error) {
     fs.rmSync(tempDirectory, { recursive: true, force: true });
     throw error;
@@ -462,24 +566,29 @@ async function upscaleGeneratedOutputs(profile, images, settings, route) {
 
 async function generateComfyImage(config, prompt, settings = {}, attachments = []) {
   const profile = readComfyProfile(config);
-  const engine = imageEngine(settings);
+  const requestedEngine = imageEngine(settings);
+  const engine = requestedEngine === "anime" && /(有兽焉|辟邪|bixie|pixiu|天禄|tianlu)/i.test(prompt)
+    ? "flux2"
+    : requestedEngine;
   const hasUserReference = attachments.some((item) => item?.type === "image" && item?.content);
+  const hasKnownReference = Boolean(findKnownReference(prompt));
   const hasMemoryReference = Boolean(findCharacterMemory(prompt));
-  const useReference = engine === "anime" && settings?.reference !== "off" && settings?.referenceSearch !== false && Boolean(
-    hasUserReference || hasMemoryReference || settings?.referenceSearch || settings?.reference === "strict" || /(有兽焉|角色|人物|陌生角色|同人|ip-adapter|reference|character|角色设定)/i.test(prompt)
+  const referenceWorkflowPath = engine === "flux2" ? profile.fluxReferenceWorkflowPath : profile.referenceWorkflowPath;
+  const useReference = ["anime", "flux2"].includes(engine) && settings?.reference !== "off" && settings?.referenceSearch !== false && Boolean(
+    hasUserReference || hasKnownReference || hasMemoryReference || settings?.referenceSearch || settings?.reference === "strict" || /(有兽焉|角色|人物|陌生角色|同人|ip-adapter|reference|character|角色设定|辟邪|bixie|pixiu|天禄|tianlu)/i.test(prompt)
   );
   let referenceContext;
   let uploadedReferenceName = "";
   try {
-    if (useReference && fs.existsSync(profile.referenceWorkflowPath)) {
-      referenceContext = await createReferenceContext(profile, prompt, attachments);
+    if (useReference && fs.existsSync(referenceWorkflowPath)) {
+      referenceContext = await createReferenceContext(profile, prompt, attachments, referenceWorkflowPath);
       uploadedReferenceName = referenceContext.uploadedName;
     }
   } catch (error) {
     console.warn(`[VELA] Reference search unavailable; falling back to text-only generation: ${error instanceof Error ? error.message : String(error)}`);
   }
   const workflowPath = engine === "flux2"
-    ? profile.fluxWorkflowPath
+    ? (referenceContext ? profile.fluxReferenceWorkflowPath : profile.fluxWorkflowPath)
     : referenceContext ? profile.referenceWorkflowPath : profile.workflowPath;
   if (!fs.existsSync(workflowPath)) throw new Error(`Image workflow is missing: ${workflowPath}`);
   const workflow = JSON.parse(fs.readFileSync(workflowPath, "utf8"));
@@ -488,7 +597,9 @@ async function generateComfyImage(config, prompt, settings = {}, attachments = [
   const node = workflow?.[promptNodeId];
   if (!node?.inputs) throw new Error(`ComfyUI prompt node ${profile.promptNodeId} is invalid.`);
   const route = imageRoute(prompt, settings);
-  node.inputs[promptInputName] = engine === "flux2" ? routedFluxPrompt(prompt) : routedImagePrompt(prompt, route);
+  node.inputs[promptInputName] = engine === "flux2"
+    ? routedFluxPrompt(prompt, referenceContext?.visualSpec ?? "")
+    : routedImagePrompt(prompt, route, referenceContext?.visualSpec ?? "");
   const { width, height } = imageDimensions(settings);
   const steps = imageSteps(settings, engine);
   if (engine === "flux2") {
@@ -499,6 +610,9 @@ async function generateComfyImage(config, prompt, settings = {}, attachments = [
     workflow["9"].inputs.height = height;
     workflow["8"].inputs.noise_seed = crypto.randomInt(1, 2147483647);
     workflow["12"].inputs.filename_prefix = "VELA-FLUX2";
+    if (referenceContext && workflow["30"]?.inputs) {
+      workflow["30"].inputs.image = uploadedReferenceName;
+    }
   } else {
     if (workflow["3"]?.inputs) workflow["3"].inputs.steps = steps;
     if (workflow["5"]?.inputs) {
