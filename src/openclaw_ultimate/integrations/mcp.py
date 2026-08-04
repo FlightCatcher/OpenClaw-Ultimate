@@ -11,6 +11,8 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Self, TextIO
 
+from openclaw_ultimate.branding import VERSION
+
 
 class McpError(RuntimeError):
     """MCP 客户端或服务器返回了错误。"""
@@ -247,7 +249,7 @@ class StdioMcpClient:
                 "capabilities": {},
                 "clientInfo": {
                     "name": "vela",
-                    "version": "1.1.1",
+                    "version": VERSION,
                 },
             },
         )
