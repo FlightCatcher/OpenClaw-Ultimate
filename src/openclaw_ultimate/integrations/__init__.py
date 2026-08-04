@@ -8,6 +8,14 @@ from openclaw_ultimate.integrations.comfyui import (
     ComfyUIWorkflowError,
     OpenClawComfyProfile,
 )
+from openclaw_ultimate.integrations.life import (
+    HomeAssistantClient,
+    HomeAssistantEntity,
+    LifeConfigurationError,
+    LifeIntegrationError,
+    QQBotClient,
+    WeComWebhookClient,
+)
 from openclaw_ultimate.integrations.mcp import (
     McpConfigurationError,
     McpError,
@@ -44,7 +52,11 @@ __all__ = [
     "ComfyUIOutput",
     "ComfyUIUnavailableError",
     "ComfyUIWorkflowError",
+    "HomeAssistantClient",
+    "HomeAssistantEntity",
     "ImageAnalysis",
+    "LifeConfigurationError",
+    "LifeIntegrationError",
     "McpConfigurationError",
     "McpError",
     "McpProtocolError",
@@ -63,7 +75,9 @@ __all__ = [
     "OpenClawGatewayStatus",
     "OpenClawIntegrationError",
     "OpenClawUnavailableError",
+    "QQBotClient",
     "StdioMcpClient",
     "Transcript",
+    "WeComWebhookClient",
     "WhisperCliClient",
 ]

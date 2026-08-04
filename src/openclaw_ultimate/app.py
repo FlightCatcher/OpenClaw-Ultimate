@@ -1,17 +1,22 @@
 from __future__ import annotations
 
 import asyncio
+import json
+from hashlib import sha256
 
 from openclaw_ultimate.config import Settings, load_settings
 from openclaw_ultimate.core.runtime import Agent
-from openclaw_ultimate.governance import SQLiteGovernanceStore
+from openclaw_ultimate.governance import RiskLevel, SQLiteGovernanceStore
 from openclaw_ultimate.integrations import (
     ComfyUIClient,
+    HomeAssistantClient,
     McpServerRegistry,
     OllamaVisionClient,
     OpenClawCliClient,
     OpenClawComfyProfile,
+    QQBotClient,
     StdioMcpClient,
+    WeComWebhookClient,
     WhisperCliClient,
 )
 from openclaw_ultimate.models import OpenAICompatibleModel
@@ -95,8 +100,233 @@ def build_default_agent(
         agent,
         current_settings,
     )
+    _register_life_tools(
+        agent,
+        current_settings,
+    )
 
     return agent
+
+
+def _register_life_tools(agent: Agent, settings: Settings) -> None:
+    governance = SQLiteGovernanceStore(settings.governance_db_path)
+
+    if settings.home_assistant_enabled and settings.home_assistant_token is not None:
+        home = HomeAssistantClient(
+            base_url=settings.home_assistant_base_url,
+            token=settings.home_assistant_token.get_secret_value(),
+            timeout=settings.home_assistant_timeout,
+        )
+        allowed_domains = frozenset(
+            domain.strip().casefold()
+            for domain in settings.home_assistant_allowed_domains
+            if domain.strip()
+        )
+
+        async def home_status() -> dict[str, object]:
+            health = await asyncio.to_thread(home.health)
+            return {"online": True, "message": str(health.get("message", "API running"))}
+
+        async def home_list_entities(domain: str | None = None) -> dict[str, object]:
+            entities = await asyncio.to_thread(home.list_states, domain)
+            return {
+                "count": len(entities),
+                "entities": [
+                    {
+                        "entity_id": entity.entity_id,
+                        "state": entity.state,
+                        "friendly_name": entity.attributes.get("friendly_name"),
+                        "last_changed": entity.last_changed,
+                    }
+                    for entity in entities
+                ],
+            }
+
+        async def home_get_state(entity_id: str) -> dict[str, object]:
+            entity = await asyncio.to_thread(home.get_state, entity_id)
+            return {
+                "entity_id": entity.entity_id,
+                "state": entity.state,
+                "attributes": entity.attributes,
+                "last_changed": entity.last_changed,
+            }
+
+        async def home_call_service(
+            domain: str,
+            service: str,
+            entity_id: str | None = None,
+            data: dict[str, object] | None = None,
+        ) -> dict[str, object]:
+            clean_domain = domain.strip().casefold()
+            if settings.home_assistant_read_only:
+                raise PermissionError("Home Assistant control is configured as read-only.")
+            if clean_domain not in allowed_domains:
+                raise PermissionError(f"Home Assistant domain is not allowed: {clean_domain}")
+            request = {
+                "domain": clean_domain,
+                "service": service.strip().casefold(),
+                "entity_id": entity_id,
+                "data": data or {},
+            }
+            fingerprint = sha256(
+                json.dumps(request, ensure_ascii=False, sort_keys=True).encode("utf-8")
+            ).hexdigest()[:24]
+            governance.require_confirmation(
+                action=f"home.{clean_domain}.{request['service']}",
+                description=(
+                    f"Control Home Assistant entity {entity_id or '(service target)'} "
+                    f"with {clean_domain}.{request['service']}"
+                ),
+                risk=RiskLevel.REVERSIBLE,
+                resource_id=fingerprint,
+            )
+            changed = await asyncio.to_thread(
+                home.call_service,
+                domain=clean_domain,
+                service=str(request["service"]),
+                entity_id=entity_id,
+                data=dict(data or {}),
+            )
+            return {
+                "ok": True,
+                "changed_entities": [item.entity_id for item in changed],
+            }
+
+        agent.tools.add(
+            name="home_status",
+            description="检查本地 Home Assistant 生活中枢是否在线。",
+            parameters={"type": "object", "properties": {}, "additionalProperties": False},
+            handler=home_status,
+        )
+        agent.tools.add(
+            name="home_list_entities",
+            description="只读列出 Home Assistant 中的米家、Matter 或其他智能家居实体。",
+            parameters={
+                "type": "object",
+                "properties": {"domain": {"type": "string"}},
+                "additionalProperties": False,
+            },
+            handler=home_list_entities,
+        )
+        agent.tools.add(
+            name="home_get_state",
+            description="只读查询一个智能家居实体的当前状态和属性。",
+            parameters={
+                "type": "object",
+                "properties": {"entity_id": {"type": "string"}},
+                "required": ["entity_id"],
+                "additionalProperties": False,
+            },
+            handler=home_get_state,
+        )
+        agent.tools.add(
+            name="home_call_service",
+            description=(
+                "控制白名单内的智能家居设备。每一个具体操作都必须经过一次性用户确认。"
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "domain": {"type": "string", "enum": sorted(allowed_domains)},
+                    "service": {"type": "string"},
+                    "entity_id": {"type": "string"},
+                    "data": {"type": "object", "default": {}},
+                },
+                "required": ["domain", "service"],
+                "additionalProperties": False,
+            },
+            handler=home_call_service,
+        )
+
+    if settings.wecom_enabled and settings.wecom_webhook_url is not None:
+        wecom = WeComWebhookClient(
+            webhook_url=settings.wecom_webhook_url.get_secret_value(),
+            timeout=settings.life_connector_timeout,
+        )
+
+        async def send_wecom_message(content: str) -> dict[str, object]:
+            clean_content = content.strip()
+            fingerprint = sha256(clean_content.encode("utf-8")).hexdigest()[:24]
+            governance.require_confirmation(
+                action="message.wecom.send",
+                description=f"Send a {len(clean_content)} character message to a WeCom group",
+                risk=RiskLevel.HIGH,
+                resource_id=fingerprint,
+            )
+            return await asyncio.to_thread(wecom.send_text, clean_content)
+
+        agent.tools.add(
+            name="send_wecom_message",
+            description=(
+                "通过官方企业微信群机器人发送文本通知。发送前必须获得一次性用户确认。"
+            ),
+            parameters={
+                "type": "object",
+                "properties": {"content": {"type": "string", "maxLength": 4000}},
+                "required": ["content"],
+                "additionalProperties": False,
+            },
+            handler=send_wecom_message,
+        )
+
+    if (
+        settings.qq_bot_enabled
+        and settings.qq_bot_app_id is not None
+        and settings.qq_bot_client_secret is not None
+    ):
+        qq = QQBotClient(
+            app_id=settings.qq_bot_app_id,
+            client_secret=settings.qq_bot_client_secret.get_secret_value(),
+            timeout=settings.life_connector_timeout,
+        )
+
+        async def send_qq_message(
+            target_type: str,
+            target_openid: str,
+            content: str,
+        ) -> dict[str, object]:
+            request = {
+                "target_type": target_type.strip().casefold(),
+                "target_openid": target_openid.strip(),
+                "content": content.strip(),
+            }
+            fingerprint = sha256(
+                json.dumps(request, ensure_ascii=False, sort_keys=True).encode("utf-8")
+            ).hexdigest()[:24]
+            governance.require_confirmation(
+                action="message.qq.send",
+                description=(
+                    f"Send a {len(request['content'])} character QQ Bot message "
+                    f"to {request['target_type']} {request['target_openid']}"
+                ),
+                risk=RiskLevel.HIGH,
+                resource_id=fingerprint,
+            )
+            return await asyncio.to_thread(
+                qq.send_text,
+                target_type=request["target_type"],
+                target_openid=request["target_openid"],
+                content=request["content"],
+            )
+
+        agent.tools.add(
+            name="send_qq_message",
+            description=(
+                "通过 QQ 开放平台官方机器人向已授权的用户或群发送文本。"
+                "必须使用事件提供的 OpenID，且每次发送前都需用户确认。"
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "target_type": {"type": "string", "enum": ["user", "group"]},
+                    "target_openid": {"type": "string"},
+                    "content": {"type": "string", "maxLength": 2000},
+                },
+                "required": ["target_type", "target_openid", "content"],
+                "additionalProperties": False,
+            },
+            handler=send_qq_message,
+        )
 
 
 def _register_workspace_tools(

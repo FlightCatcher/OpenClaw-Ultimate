@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -126,6 +126,35 @@ class Settings(BaseSettings):
     whisper_model_path: Path | None = None
     media_timeout: float = 600.0
 
+    # Life hub. Home Assistant is the local normalization layer for Xiaomi Home,
+    # Matter, and other supported smart-home ecosystems. All state-changing calls
+    # remain disabled until explicitly enabled and individually confirmed.
+    home_assistant_enabled: bool = False
+    home_assistant_base_url: str = "http://homeassistant.local:8123"
+    home_assistant_token: SecretStr | None = None
+    home_assistant_timeout: float = 10.0
+    home_assistant_read_only: bool = True
+    home_assistant_allowed_domains: tuple[str, ...] = (
+        "light",
+        "switch",
+        "fan",
+        "climate",
+        "cover",
+        "vacuum",
+        "media_player",
+        "scene",
+        "script",
+    )
+
+    # Personal WeChat does not expose a general-purpose bot API. VELA supports
+    # only the official outbound WeCom group-robot webhook.
+    wecom_enabled: bool = False
+    wecom_webhook_url: SecretStr | None = None
+    qq_bot_enabled: bool = False
+    qq_bot_app_id: str | None = None
+    qq_bot_client_secret: SecretStr | None = None
+    life_connector_timeout: float = 10.0
+
     api_host: str = "127.0.0.1"
     api_port: int = 8765
     api_allow_remote: bool = False
@@ -149,6 +178,8 @@ class Settings(BaseSettings):
         "comfyui_poll_interval",
         "comfyui_timeout",
         "mcp_timeout",
+        "home_assistant_timeout",
+        "life_connector_timeout",
     )
     @classmethod
     def validate_model_timeout(

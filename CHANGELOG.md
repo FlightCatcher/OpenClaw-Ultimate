@@ -1,5 +1,15 @@
 # Changelog
 
+## VELA 1.2.0 — life connectors - 2026-08-04
+
+- Added a local Home Assistant connector for Xiaomi Home, Matter and other normalized smart-home entities.
+- Added read-only entity discovery and state inspection plus governed service calls for approved home domains.
+- Added official outbound Enterprise WeChat group-robot notifications with strict host validation.
+- Added official QQ Bot v2 authentication and user/group text delivery using platform OpenIDs.
+- Required single-use confirmation for every smart-home control and outgoing message.
+- Kept personal WeChat login automation, simulated UI control and Huawei account scraping out of scope.
+- Documented the Huawei Matter route and official partner-only cloud integration boundary.
+
 ## VELA Desktop 4.16.0 — reliable image completion - 2026-08-03
 
 - Restored rendering for historical ComfyUI records persisted as relative `view?...` URLs when the underlying output still exists.
