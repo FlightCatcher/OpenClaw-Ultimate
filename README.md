@@ -201,6 +201,8 @@ Python 固定为 3.12。依赖由 `uv.lock` 锁定。
 - [v1.0 架构与兼容策略](docs/06_V1_ARCHITECTURE.md)
 - [安全模型](docs/07_SECURITY.md)
 - [数据迁移与恢复](docs/08_DATA_AND_RECOVERY.md)
+- [生活连接层](docs/09_LIFE_CONNECTORS.md)
+- [E 盘 Home Assistant 安装与 VELA 接入](docs/10_HOME_ASSISTANT_INSTALL.md)
 
 ## License
 
